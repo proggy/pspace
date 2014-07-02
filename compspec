@@ -1,0 +1,16 @@
+#pspacewords=$(pspace --comp-words)
+pspacewords='cardin create delete filenames info list submit users queues'
+_pspace()
+{
+  local curw
+  COMPREPLY=()
+  curw=${COMP_WORDS[COMP_CWORD]}
+  if [ $COMP_CWORD == 1 ]
+  then
+    COMPREPLY=($(compgen -W '$pspacewords' -- $curw))
+  else
+    COMPREPLY=($(compgen -A file -- $curw))
+  fi
+  return 0
+}
+complete -F _pspace -o dirnames pspace

@@ -1,20 +1,31 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""pspace - a parameter space manager to create and maintain PBS jobs given
-the combinations of predefined parameter values
+"""pspace - a parameter space manager to create and maintain PBS jobs given the
+combinations of predefined parameter values. Depends on the Portable Batch
+System (PBS), thus is meant to be used on login servers of computer clusters
+using PBS.
 
 All commands expect one ore more configuration files as arguments.
 
 Many commands can be interrupted by hitting CTRL-C on the keyboard.
 
-To do:
---> in addition to PBS, also support pool? To make use of the tlab cluster
---> define datatypes of parameters
---> enable CMD_CHECKFILE, use to decide if "create" should be executed again
-    (e.g. if parameter set cannot be loaded anymore, overwrite it)
+For pspace to work, you need to create an executable script with the name
+"pspace", which is calling the function *call()*, like this:
+
+    >>> import sys, pspace
+    >>> if __name__ == '__main__':
+    >>>     sys.exit(pspace.call())
 """
+#
+# To do:
+# --> in addition to PBS, also support pool? To make use of the tlab cluster
+# --> define datatypes of parameters
+# --> enable CMD_CHECKFILE, use to decide if "create" should be executed again
+#     (e.g. if parameter set cannot be loaded anymore, overwrite it)
+#
 __created__ = '2013-01-18'
 __modified__ = '2014-07-02'
+
 import commands
 import getpass
 import itertools
@@ -172,9 +183,9 @@ def submit(*args):
     """Submit PBS jobs.
 
     For each parameter set, it will be checked first if there is already a
-    process working on it (using "qstat").
+    process working on it (using *qstat*).
 
-    Make sure to use "create" first to create missing datafiles and directories
+    Make sure to use *create* first to create missing datafiles and directories
     before submitting any jobs."""
     # 2013-01-21 - 2013-07-29
 
@@ -392,7 +403,7 @@ def delete(*args):
     """Delete jobs submitted to the batch system. Filter by parameter subspace,
     node name or job ID.
 
-    Uses the PBS command "qdel"."""
+    Uses the PBS command *qdel*."""
     # 2013-01-31 - 2013-07-29
 
     # parse command line options
@@ -510,11 +521,11 @@ def delete(*args):
 
 
 def info(*args):
-    """Show information about a given configuration file and it's parameter
+    """Show information about a given configuration file and its parameter
     space.
 
-    This command shows general information about a parameter space, i.e., one
-    line per given configuration file. Use "list" to list information about
+    This command shows general information about a parameter space, i.e. one
+    line per given configuration file. Use *list* to list information about
     every single parameter set, i.e., one line per parameter set.
 
     It can be specified which columns the output should contain (and their
@@ -527,29 +538,51 @@ def info(*args):
     remove the cardinality column.
 
     Possible characters for the --display option:
-    n : name of the directory where the configuration file resides
-    N : relative path to the directory where the configuration file resides
-    c : cardinality (number of parameter combinations)
-    e : pattern for the execution command
-    f : pattern for creating the datafile
-    a : pattern for obtaining the accuracy
-    o : comparison operator used to decide if accuracy has been reached
-    F : pattern for the datafile
-    M : number of jobs being submitted at the same time (MAXRUN)
-    d : working directory (WORKDIR)
-    D : working directory (WORKDIR), absolute path
-    b : size of the directory (where the configuration file is in) in kilobytes
-    s : number of submitted jobs (no matter in which state)
-    R : number of running jobs (submitted and with status R)
-    Q : number of queued jobs (submitted and with status Q)
-    C : number of completed jobs (submitted and with status C)
-    E : number of exiting jobs (submitted and with status E)
-    H : number of held jobs (submitted and with status H)
-    T : number of moving jobs (submitted and with status T)
-    W : number of waiting jobs (submitted and with status W)
-    S : number of suspended jobs (submitted and with status S)
-    t : number of jobs that reached their target accuracy (so they finished)
-    """
+
+    n
+        name of the directory where the configuration file resides
+    N
+        relative path to the directory where the configuration file resides
+    c
+        cardinality (number of parameter combinations)
+    e
+        pattern for the execution command
+    f
+        pattern for creating the datafile
+    a
+        pattern for obtaining the accuracy
+    o
+        comparison operator used to decide if accuracy has been reached
+    F
+        pattern for the datafile
+    M
+        number of jobs being submitted at the same time (MAXRUN)
+    d
+        working directory (WORKDIR)
+    D
+        working directory (WORKDIR), absolute path
+    b
+        size of the directory (where the configuration file is in) in kilobytes
+    s
+        number of submitted jobs (no matter in which state)
+    R
+        number of running jobs (submitted and with status R)
+    Q
+        number of queued jobs (submitted and with status Q)
+    C
+        number of completed jobs (submitted and with status C)
+    E
+        number of exiting jobs (submitted and with status E)
+    H
+        number of held jobs (submitted and with status H)
+    T
+        number of moving jobs (submitted and with status T)
+    W
+        number of waiting jobs (submitted and with status W)
+    S
+        number of suspended jobs (submitted and with status S)
+    t
+        number of jobs that reached their target accuracy (so they finished)"""
     # 2013-02-01 - 2014-07-02
 
     # parse command line options
@@ -811,37 +844,63 @@ def jlist(*args):
     filesize information to the default output, but remove the job ID column.
 
     Possible characters for the --display option:
-    n : job name (path to the associated datafile)
-    i : job ID (if job is currently submitted to the batch system)
-    e : execution command
-    f : command to create the datafile
-    a : command to obtain the data accuracy
-    A : current data accuracy (datafile lookup, costs time)
-    t : target accuracy
-    p : parameter set
-    s : PBS job state (if job is currently submitted to the batch system)
-    b : size of the datafile in kilobytes
+
+    n
+        job name (path to the associated datafile)
+    i
+        job ID (if job is currently submitted to the batch system)
+    e
+        execution command
+    f
+        command to create the datafile
+    a
+        command to obtain the data accuracy
+    A
+        current data accuracy (datafile lookup, costs time)
+    t
+        target accuracy
+    p
+        parameter set
+    s
+        PBS job state (if job is currently submitted to the batch system)
+    b
+        size of the datafile in kilobytes
 
     Possible characters for the --filter option:
-    f : show only finished jobs (already reached target accuracy)
-    F : show only unfinished jobs (not yet reached target accuracy)
-    s : show only jobs submitted to the batch system
-    S : show only jobs currently not submitted to the batch system
-    r : "restart", same as "FS" (not finished and also currently not
-        submitted to the batch system), i.e. these jobs should be restarted
-    R : show only running jobs (PBS job state "R")
-    Q : show only queued jobs (PBS job state "Q")
-    C : show only completed jobs (PBS job state "C")
-    E : show only exited jobs (PBS job state "E")
-    H : show only held jobs (PBS job state "H")
-    T : show only moved jobs (PBS job state "T")
-    W : show only waiting jobs (PBS job state "W")
-    P : show only suspended jobs (PBS job state "S")
 
-    To do:
-    --> filter non-directories
-    --> automatically filter directories that do not contain a file named
-        "pspace.conf" """
+    f
+        show only finished jobs (already reached target accuracy)
+    F
+        show only unfinished jobs (not yet reached target accuracy)
+    s
+        show only jobs submitted to the batch system
+    S
+        show only jobs currently not submitted to the batch system
+    r
+        "restart", same as "FS" (not finished and also currently not submitted
+        to the batch system), i.e. these jobs should be restarted
+    R
+        show only running jobs (PBS job state "R")
+    Q
+        show only queued jobs (PBS job state "Q")
+    C
+        show only completed jobs (PBS job state "C")
+    E
+        show only exited jobs (PBS job state "E")
+    H
+        show only held jobs (PBS job state "H")
+    T
+        show only moved jobs (PBS job state "T")
+    W
+        show only waiting jobs (PBS job state "W")
+    P
+        show only suspended jobs (PBS job state "S")"""
+    #
+    # To do:
+    # --> filter non-directories
+    # --> automatically filter directories that do not contain a file named
+    #     "pspace.conf"
+    #
     # 2013-02-02 - 2013-07-28
 
     # parse command line options
@@ -1117,8 +1176,8 @@ def fnames(*args):
 
     Shortcut for "list --display n".
 
-    Options are the same as for "list" except for the --display option having
-    no effect. See the documentation of the "list" command for details"""
+    Options are the same as for *list* except for the --display option having
+    no effect. See the documentation of the *list* command for details"""
     # 2013-02-02 - 2013-07-28
     if args:
         args += ('--display', 'n')
@@ -1128,13 +1187,13 @@ def fnames(*args):
 
 
 def cardinality(*args):
-    """Compute cardinality of the defined parameter space (number of possible
-    parameter combinations).
+    """Compute cardinality of the defined parameter space (number of parameter
+    combinations).
 
     Shortcut for "info --display a".
 
-    Options are the same as for "info" except for the --display option having
-    no effect. See the documentation of the "info" command for details."""
+    Options are the same as for *info* except for the --display option having
+    no effect. See the documentation of the *info* command for details."""
     # 2013-01-18 - 2013-07-28
     if args:
         args += ('--display', 'c')
@@ -1339,14 +1398,14 @@ def purge(*args):
 
 
 def users(*args):
-    """List job owners of submitted jobs.
-
-    To do:
-        --> command line interface
-        --> sort options
-        --> filter options
-        --> use nice table output (write table module)
-    """
+    """List job owners of submitted jobs."""
+    #
+    # To do:
+    # --> command line interface
+    # --> sort options
+    # --> filter options
+    # --> use nice table output (write table module)
+    #
     # 2013-08-09 - 2013-08-12
     qdata = get_qdata()
     userdata = {}
@@ -1371,14 +1430,14 @@ def users(*args):
 
 
 def queues(*args):
-    """List queues and their usage.
-
-    To do:
-        --> command line interface
-        --> sort options
-        --> filter options
-        --> use nice table output (write table module)
-    """
+    """List queues and their usage."""
+    #
+    # To do:
+    # --> command line interface
+    # --> sort options
+    # --> filter options
+    # --> use nice table output (write table module)
+    #
     # 2013-11-14 - 2013-11-14
     qdata = get_qdata()
     data = {}
@@ -1418,12 +1477,15 @@ def one_of_in(sequence, iterable):
 
 
 def retry(func, *args, **kwargs):
-    """Call the function "func" with the given arguments and keyword arguments.
-    If an exception is raised, wait a certain delay and call it again.
+    """Call the function *func* with the given arguments and keyword arguments.
+    If an exception is raised, wait for a certain delay and call it again.
 
     Special keyword arguments:
-    retries : number of retries (default: 1), None means infinity
-    delay   : delay before next retry in seconds (default: 1)"""
+
+    retries
+        number of retries (default: 1), None means infinity
+    delay
+        delay before next try in seconds (default: 1)"""
     # 2013-01-31 - 2013-01-31
 
     # fetch special keyword arguments
@@ -1444,10 +1506,11 @@ def retry(func, *args, **kwargs):
 
 
 def filter_psets(psets, opts_param, pnames=None):
-    """From the given psets, filter only those parameters as specified in the
-    given --param option string. Return the corresponding parameter subspace.
-    Only parameter names specified in the list "pnames" are allowed (if given).
-    Valid examples are "J=1", "J=1,L=10", "J=7:,L=10", "J=3:8,L=10"."""
+    """From the given parameter sets *psets*, filter only those parameters that
+    are specified in the given --param option string. Return the corresponding
+    parameter subspace.  Only parameter names specified in the list *pnames*
+    are allowed (if given).  Valid examples are "J=1", "J=1,L=10", "J=7:,L=10",
+    "J=3:8,L=10"."""
     # 2013-01-28 - 2013-02-11
 
     # parse param option
@@ -1551,8 +1614,8 @@ def filter_psets(psets, opts_param, pnames=None):
 
 
 def count_running(psets, qdata):
-    """Count how many of the given parameter sets are running according to the
-    given qstat output (qdata)."""
+    """Count how many of the given parameter sets *psets* are running according
+    to the given *qstat* output (*qdata*)."""
     # 2013-01-22 - 2013-01-22
     running = 0
     job_names = [job['Job_Name'] for job in qdata.values()]
@@ -1586,8 +1649,8 @@ def get_acc(conf, pset, delay=2., retries=2):
 
 
 def check_file(conf, pset, delay=2., retries=2):
-    """Check datafile. If the system call returns an empty string,
-    return False, otherwise, return True."""
+    """Check datafile. If the system call returns an empty string, return
+    *False*, otherwise, return *True*."""
     # 2013-03-21 - 2013-03-21
     cmd = cmd_check(conf, pset)
     output = retry(subprocess.check_output, cmd, shell=True,
@@ -1643,7 +1706,8 @@ def cmd_check(conf, pset):
 
 
 def get_qdata():
-    """Get information about running jobs from PBS using "qstat -f1"."""
+    """Get information about running jobs from PBS using the PBS command "qstat
+    -f1"."""
     # 2013-01-22 - 2013-02-06
 
     # get output from "qstat -f1"
@@ -1710,7 +1774,8 @@ def get_qdata():
 
 
 def get_qdata_simple():
-    """Get information about running jobs from PBS using "qstat"."""
+    """Get information about running jobs from PBS using the PBS command
+    "qstat"."""
     # 2013-01-21 - 2013-01-22
 
     # get output from "qstat"
@@ -1735,8 +1800,8 @@ def get_qdata_simple():
 
 def compute_psets(conf):
     """Compute and return all possible parameter combinations (parameter sets)
-    of the given configuration information, together with filename of the
-    corresponding datafile and accuracy target."""
+    of the given configuration information *conf*, together with filename of
+    the corresponding datafile and accuracy target."""
     # 2013-01-18 - 2013-07-28
 
     pnames = conf['pnames']
@@ -1778,8 +1843,8 @@ def compute_psets(conf):
 
 
 def name_datafile(conf, pset):
-    """Determine the name of the datafile belonging to the given parameter set.
-    The configuration information must be given."""
+    """Determine the name of the datafile belonging to the given parameter set
+    *pset*.  The configuration information *conf* must be given."""
     # 2013-01-21 - 2013-01-21
     values = []
     for expr in conf['DATAFILE_VALUES']:
@@ -1790,7 +1855,7 @@ def name_datafile(conf, pset):
 
 def conf_filenames(*fileobjects, **kwargs):
     """Get the (absolute) paths to the configuration file specified by either
-    directory names or by the files themselves. If *force* is True, silently
+    directory names or by the files themselves. If *force* is *True*, silently
     ignore invalid files and directories."""
     # 2013-01-18 - 2014-07-02
 
@@ -1837,9 +1902,9 @@ def conf_filenames(*fileobjects, **kwargs):
 
 
 def parse_conf(filename):
-    """Load and parse a configuration file. Return a configuration data
-    structure. If a directory is given, look for a file named
-    <dirname>.conf."""
+    """Load and parse a configuration file, given by *filename*. Return a
+    configuration data structure. If a directory is given, look for a file
+    named <dirname>.conf."""
     # 2013-01-18 - 2013-07-28
 
     # define context constants
@@ -2288,7 +2353,7 @@ def parse_conf(filename):
 
 def conf_syntax_error(filename, line_index):
     """Exit on syntax error, providing the filename of the configuration file
-    and the line number."""
+    and the line number *line_index*."""
     # 2013-01-18 - 2013-01-18
     #raise
     print >>sys.stderr, 'pspace: %s:%i: syntax error' \
@@ -2297,9 +2362,10 @@ def conf_syntax_error(filename, line_index):
 
 
 def printcols(strings, ret=False):
-    """Print the strings in the given list in column-wise (similar to the shell
-    program "ls"), respecting the width of the shell window. If ret is True,
-    give back the resulting string instead of printing it to stdout."""
+    """Print the strings in the given list *strings* column-wise (similar to
+    the Unix shell program *ls*), respecting the width of the terminal window.
+    If *ret* is *True*, return the resulting string instead of printing it to
+    *stdout*."""
     # 2012-09-26 - 2012-11-30
     # based on tb.misc.printcols (written 2011-09-13)
     # former tb.printcols from 2011-02-13 until 2011-08-02
@@ -2347,8 +2413,8 @@ def remove_ansi_colors(string):
 
 
 def ceil(x):
-    """Return the ceiling of x. This exists as a substitute for numpy.ceil, to
-    avoid importing the huge numpy module."""
+    """Return the ceiling of *x*. This exists purely as a substitute for
+    *numpy.ceil*, to avoid the dependency on the *numpy* module."""
     # 2012-10-29 - 2012-10-29
     if int(x) == x or x <= 0:
         return int(x)
@@ -2357,8 +2423,8 @@ def ceil(x):
 
 
 def get_cols():
-    """Try to get the width of the shell window (will only work on Unix
-    systems)."""
+    """Try to get the width of the terminal window (will only work on Unix
+    systems). If failing, return standard width (80 columns)."""
     try:
         return int(commands.getoutput('tput cols'))
     except ValueError:
@@ -2368,10 +2434,8 @@ def get_cols():
 
 def splits(string, seps=[]):
     """Return a list of the words in the given string, using the list of
-    strings "seps" as delimiter strings.
-
-    Note: A None value in the seps list separates the string by whitespace of
-    any length"""
+    strings *seps* as delimiter strings. A *None* value in *seps* separates the
+    string by whitespace of any length"""
     # 2013-01-18 - 2013-01-18
     # copied from tb.misc.splits (written 2012-07-15)
     if isinstance(seps, basestring):

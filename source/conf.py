@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # pspace documentation build configuration file, created by
-# sphinx-quickstart on Thu Jul  3 13:30:54 2014.
+# sphinx-quickstart on Thu Jul  3 14:10:01 2014.
 #
 # This file is execfile()d with the current directory set to its containing dir.
 #

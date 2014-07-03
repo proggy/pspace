@@ -1,0 +1,528 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>pspace &mdash; pspace 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="pspace 0.1 documentation" href="#" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="#">pspace 0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="pspace">
+<h1>pspace<a class="headerlink" href="#pspace" title="Permalink to this headline">¶</a></h1>
+<div class="toctree-wrapper compound">
+<ul class="simple">
+</ul>
+</div>
+<span class="target" id="module-pspace"></span><p>pspace - a parameter space manager to create and maintain PBS jobs given the
+combinations of predefined parameter values. Depends on the Portable Batch
+System (PBS), thus is meant to be used on login servers of computer clusters
+using PBS.</p>
+<p>All commands expect one ore more configuration files as arguments.</p>
+<p>Many commands can be interrupted by hitting CTRL-C on the keyboard.</p>
+<p>For pspace to work, you need to create an executable script with the name
+&#8220;pspace&#8221;, which is calling the function <em>call()</em>, like this:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">sys</span><span class="o">,</span> <span class="nn">pspace</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&#39;__main__&#39;</span><span class="p">:</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="n">pspace</span><span class="o">.</span><span class="n">call</span><span class="p">())</span>
+</pre></div>
+</div>
+<div class="section" id="functions">
+<h2>Functions<a class="headerlink" href="#functions" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="commands">
+<h3>Commands<a class="headerlink" href="#commands" title="Permalink to this headline">¶</a></h3>
+<dl class="function">
+<dt id="pspace.create">
+<tt class="descclassname">pspace.</tt><tt class="descname">create</tt><big>(</big><em>*args</em><big>)</big><a class="reference internal" href="_modules/pspace.html#create"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pspace.create" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create datafiles, including the directory structure along the path.</p>
+<p>To create the datafiles, the command pattern CMD_FILE from the
+configuration file is used.</p>
+<p>In the typical usecase it is recommended to use the option &#8211;force to skip
+files that already exist and just &#8220;fill the gaps&#8221;.</p>
+<p>Use the &#8211;param option to select only a certain parameter subspace.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="pspace.submit">
+<tt class="descclassname">pspace.</tt><tt class="descname">submit</tt><big>(</big><em>*args</em><big>)</big><a class="reference internal" href="_modules/pspace.html#submit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pspace.submit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Submit PBS jobs.</p>
+<p>For each parameter set, it will be checked first if there is already a
+process working on it (using <em>qstat</em>).</p>
+<p>Make sure to use <em>create</em> first to create missing datafiles and directories
+before submitting any jobs.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="pspace.delete">
+<tt class="descclassname">pspace.</tt><tt class="descname">delete</tt><big>(</big><em>*args</em><big>)</big><a class="reference internal" href="_modules/pspace.html#delete"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pspace.delete" title="Permalink to this definition">¶</a></dt>
+<dd><p>Delete jobs submitted to the batch system. Filter by parameter subspace,
+node name or job ID.</p>
+<p>Uses the PBS command <em>qdel</em>.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="pspace.info">
+<tt class="descclassname">pspace.</tt><tt class="descname">info</tt><big>(</big><em>*args</em><big>)</big><a class="reference internal" href="_modules/pspace.html#info"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pspace.info" title="Permalink to this definition">¶</a></dt>
+<dd><p>Show information about a given configuration file and its parameter
+space.</p>
+<p>This command shows general information about a parameter space, i.e. one
+line per given configuration file. Use <em>list</em> to list information about
+every single parameter set, i.e., one line per parameter set.</p>
+<p>It can be specified which columns the output should contain (and their
+order) using the &#8211;display option. If &#8211;display contains a plus sign (+),
+all columns defined thereafter are added to the already defined (or
+default) columns. If &#8211;display contains a minus sign (-), all columns
+defined thereafter are removed from the already defined (or default)
+columns. For example, you can specify &#8220;&#8211;display +db-c&#8221; to add columns for
+the directory size and the working directory to the default output, but
+remove the cardinality column.</p>
+<p>Possible characters for the &#8211;display option:</p>
+<dl class="docutils">
+<dt>n</dt>
+<dd>name of the directory where the configuration file resides</dd>
+<dt>N</dt>
+<dd>relative path to the directory where the configuration file resides</dd>
+<dt>c</dt>
+<dd>cardinality (number of parameter combinations)</dd>
+<dt>e</dt>
+<dd>pattern for the execution command</dd>
+<dt>f</dt>
+<dd>pattern for creating the datafile</dd>
+<dt>a</dt>
+<dd>pattern for obtaining the accuracy</dd>
+<dt>o</dt>
+<dd>comparison operator used to decide if accuracy has been reached</dd>
+<dt>F</dt>
+<dd>pattern for the datafile</dd>
+<dt>M</dt>
+<dd>number of jobs being submitted at the same time (MAXRUN)</dd>
+<dt>d</dt>
+<dd>working directory (WORKDIR)</dd>
+<dt>D</dt>
+<dd>working directory (WORKDIR), absolute path</dd>
+<dt>b</dt>
+<dd>size of the directory (where the configuration file is in) in kilobytes</dd>
+<dt>s</dt>
+<dd>number of submitted jobs (no matter in which state)</dd>
+<dt>R</dt>
+<dd>number of running jobs (submitted and with status R)</dd>
+<dt>Q</dt>
+<dd>number of queued jobs (submitted and with status Q)</dd>
+<dt>C</dt>
+<dd>number of completed jobs (submitted and with status C)</dd>
+<dt>E</dt>
+<dd>number of exiting jobs (submitted and with status E)</dd>
+<dt>H</dt>
+<dd>number of held jobs (submitted and with status H)</dd>
+<dt>T</dt>
+<dd>number of moving jobs (submitted and with status T)</dd>
+<dt>W</dt>
+<dd>number of waiting jobs (submitted and with status W)</dd>
+<dt>S</dt>
+<dd>number of suspended jobs (submitted and with status S)</dd>
+<dt>t</dt>
+<dd>number of jobs that reached their target accuracy (so they finished)</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="pspace.jlist">
+<tt class="descclassname">pspace.</tt><tt class="descname">jlist</tt><big>(</big><em>*args</em><big>)</big><a class="reference internal" href="_modules/pspace.html#jlist"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pspace.jlist" title="Permalink to this definition">¶</a></dt>
+<dd><p>List information about jobs.</p>
+<p>It can be specified which columns the output should contain (and their
+order) using the &#8211;display option. If &#8211;display contains a plus sign (+),
+all columns defined thereafter are added to the already defined (or
+default) columns. If &#8211;display contains a minus sign (-), all columns
+defined thereafter are removed from the already defined (or default)
+columns. For example, you can specify &#8220;&#8211;display +Ab-i&#8221; to add accuracy and
+filesize information to the default output, but remove the job ID column.</p>
+<p>Possible characters for the &#8211;display option:</p>
+<dl class="docutils">
+<dt>n</dt>
+<dd>job name (path to the associated datafile)</dd>
+<dt>i</dt>
+<dd>job ID (if job is currently submitted to the batch system)</dd>
+<dt>e</dt>
+<dd>execution command</dd>
+<dt>f</dt>
+<dd>command to create the datafile</dd>
+<dt>a</dt>
+<dd>command to obtain the data accuracy</dd>
+<dt>A</dt>
+<dd>current data accuracy (datafile lookup, costs time)</dd>
+<dt>t</dt>
+<dd>target accuracy</dd>
+<dt>p</dt>
+<dd>parameter set</dd>
+<dt>s</dt>
+<dd>PBS job state (if job is currently submitted to the batch system)</dd>
+<dt>b</dt>
+<dd>size of the datafile in kilobytes</dd>
+</dl>
+<p>Possible characters for the &#8211;filter option:</p>
+<dl class="docutils">
+<dt>f</dt>
+<dd>show only finished jobs (already reached target accuracy)</dd>
+<dt>F</dt>
+<dd>show only unfinished jobs (not yet reached target accuracy)</dd>
+<dt>s</dt>
+<dd>show only jobs submitted to the batch system</dd>
+<dt>S</dt>
+<dd>show only jobs currently not submitted to the batch system</dd>
+<dt>r</dt>
+<dd>&#8220;restart&#8221;, same as &#8220;FS&#8221; (not finished and also currently not submitted
+to the batch system), i.e. these jobs should be restarted</dd>
+<dt>R</dt>
+<dd>show only running jobs (PBS job state &#8220;R&#8221;)</dd>
+<dt>Q</dt>
+<dd>show only queued jobs (PBS job state &#8220;Q&#8221;)</dd>
+<dt>C</dt>
+<dd>show only completed jobs (PBS job state &#8220;C&#8221;)</dd>
+<dt>E</dt>
+<dd>show only exited jobs (PBS job state &#8220;E&#8221;)</dd>
+<dt>H</dt>
+<dd>show only held jobs (PBS job state &#8220;H&#8221;)</dd>
+<dt>T</dt>
+<dd>show only moved jobs (PBS job state &#8220;T&#8221;)</dd>
+<dt>W</dt>
+<dd>show only waiting jobs (PBS job state &#8220;W&#8221;)</dd>
+<dt>P</dt>
+<dd>show only suspended jobs (PBS job state &#8220;S&#8221;)</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="pspace.fnames">
+<tt class="descclassname">pspace.</tt><tt class="descname">fnames</tt><big>(</big><em>*args</em><big>)</big><a class="reference internal" href="_modules/pspace.html#fnames"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pspace.fnames" title="Permalink to this definition">¶</a></dt>
+<dd><p>Show names (paths) of the datafiles for the selected jobs (which also
+serve as job names when submitted to the batch system).</p>
+<p>Shortcut for &#8220;list &#8211;display n&#8221;.</p>
+<p>Options are the same as for <em>list</em> except for the &#8211;display option having
+no effect. See the documentation of the <em>list</em> command for details</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="pspace.cardinality">
+<tt class="descclassname">pspace.</tt><tt class="descname">cardinality</tt><big>(</big><em>*args</em><big>)</big><a class="reference internal" href="_modules/pspace.html#cardinality"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pspace.cardinality" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute cardinality of the defined parameter space (number of parameter
+combinations).</p>
+<p>Shortcut for &#8220;info &#8211;display a&#8221;.</p>
+<p>Options are the same as for <em>info</em> except for the &#8211;display option having
+no effect. See the documentation of the <em>info</em> command for details.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="pspace.purge">
+<tt class="descclassname">pspace.</tt><tt class="descname">purge</tt><big>(</big><em>*args</em><big>)</big><a class="reference internal" href="_modules/pspace.html#purge"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pspace.purge" title="Permalink to this definition">¶</a></dt>
+<dd><p>Delete empty datafiles. If directories end up empty, delete them as
+well.</p>
+<p>Datafiles of jobs that are currently submitted will be skipped.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="pspace.users">
+<tt class="descclassname">pspace.</tt><tt class="descname">users</tt><big>(</big><em>*args</em><big>)</big><a class="reference internal" href="_modules/pspace.html#users"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pspace.users" title="Permalink to this definition">¶</a></dt>
+<dd><p>List job owners of submitted jobs.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="pspace.queues">
+<tt class="descclassname">pspace.</tt><tt class="descname">queues</tt><big>(</big><em>*args</em><big>)</big><a class="reference internal" href="_modules/pspace.html#queues"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pspace.queues" title="Permalink to this definition">¶</a></dt>
+<dd><p>List queues and their usage.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="pspace.call">
+<tt class="descclassname">pspace.</tt><tt class="descname">call</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pspace.html#call"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pspace.call" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="auxiliary-functions">
+<h3>Auxiliary functions<a class="headerlink" href="#auxiliary-functions" title="Permalink to this headline">¶</a></h3>
+<dl class="function">
+<dt id="pspace.one_of_in">
+<tt class="descclassname">pspace.</tt><tt class="descname">one_of_in</tt><big>(</big><em>sequence</em>, <em>iterable</em><big>)</big><a class="reference internal" href="_modules/pspace.html#one_of_in"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pspace.one_of_in" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check if at least one item of the given sequence is contained in the
+given iterable.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="pspace.retry">
+<tt class="descclassname">pspace.</tt><tt class="descname">retry</tt><big>(</big><em>func</em>, <em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/pspace.html#retry"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pspace.retry" title="Permalink to this definition">¶</a></dt>
+<dd><p>Call the function <em>func</em> with the given arguments and keyword arguments.
+If an exception is raised, wait for a certain delay and call it again.</p>
+<p>Special keyword arguments:</p>
+<dl class="docutils">
+<dt>retries</dt>
+<dd>number of retries (default: 1), None means infinity</dd>
+<dt>delay</dt>
+<dd>delay before next try in seconds (default: 1)</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="pspace.filter_psets">
+<tt class="descclassname">pspace.</tt><tt class="descname">filter_psets</tt><big>(</big><em>psets</em>, <em>opts_param</em>, <em>pnames=None</em><big>)</big><a class="reference internal" href="_modules/pspace.html#filter_psets"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pspace.filter_psets" title="Permalink to this definition">¶</a></dt>
+<dd><p>From the given parameter sets <em>psets</em>, filter only those parameters that
+are specified in the given &#8211;param option string. Return the corresponding
+parameter subspace.  Only parameter names specified in the list <em>pnames</em>
+are allowed (if given).  Valid examples are &#8220;J=1&#8221;, &#8220;J=1,L=10&#8221;, &#8220;J=7:,L=10&#8221;,
+&#8220;J=3:8,L=10&#8221;.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="pspace.count_running">
+<tt class="descclassname">pspace.</tt><tt class="descname">count_running</tt><big>(</big><em>psets</em>, <em>qdata</em><big>)</big><a class="reference internal" href="_modules/pspace.html#count_running"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pspace.count_running" title="Permalink to this definition">¶</a></dt>
+<dd><p>Count how many of the given parameter sets <em>psets</em> are running according
+to the given <em>qstat</em> output (<em>qdata</em>).</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="pspace.get_acc">
+<tt class="descclassname">pspace.</tt><tt class="descname">get_acc</tt><big>(</big><em>conf</em>, <em>pset</em>, <em>delay=2.0</em>, <em>retries=2</em><big>)</big><a class="reference internal" href="_modules/pspace.html#get_acc"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pspace.get_acc" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get accuracy from datafile.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="pspace.check_file">
+<tt class="descclassname">pspace.</tt><tt class="descname">check_file</tt><big>(</big><em>conf</em>, <em>pset</em>, <em>delay=2.0</em>, <em>retries=2</em><big>)</big><a class="reference internal" href="_modules/pspace.html#check_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pspace.check_file" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check datafile. If the system call returns an empty string, return
+<em>False</em>, otherwise, return <em>True</em>.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="pspace.cmd_file">
+<tt class="descclassname">pspace.</tt><tt class="descname">cmd_file</tt><big>(</big><em>conf</em>, <em>pset</em><big>)</big><a class="reference internal" href="_modules/pspace.html#cmd_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pspace.cmd_file" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the command needed to create the datafile associated with the
+given parameter set, using the template from the configuration file
+information.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="pspace.cmd_exec">
+<tt class="descclassname">pspace.</tt><tt class="descname">cmd_exec</tt><big>(</big><em>conf</em>, <em>pset</em><big>)</big><a class="reference internal" href="_modules/pspace.html#cmd_exec"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pspace.cmd_exec" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the execution command corresponding to the given parameter set,
+using the template from the configuration file information.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="pspace.cmd_acc">
+<tt class="descclassname">pspace.</tt><tt class="descname">cmd_acc</tt><big>(</big><em>conf</em>, <em>pset</em><big>)</big><a class="reference internal" href="_modules/pspace.html#cmd_acc"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pspace.cmd_acc" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the command needed to obtain the accuracy from the datafile
+corresponding to the given parameter set, using the template from the
+configuration file information.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="pspace.cmd_check">
+<tt class="descclassname">pspace.</tt><tt class="descname">cmd_check</tt><big>(</big><em>conf</em>, <em>pset</em><big>)</big><a class="reference internal" href="_modules/pspace.html#cmd_check"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pspace.cmd_check" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the command needed to check the integrity of a datafile, using
+the template from the configuration file information.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="pspace.get_qdata">
+<tt class="descclassname">pspace.</tt><tt class="descname">get_qdata</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pspace.html#get_qdata"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pspace.get_qdata" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get information about running jobs from PBS using the PBS command &#8220;qstat
+-f1&#8221;.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="pspace.get_qdata_simple">
+<tt class="descclassname">pspace.</tt><tt class="descname">get_qdata_simple</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pspace.html#get_qdata_simple"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pspace.get_qdata_simple" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get information about running jobs from PBS using the PBS command
+&#8220;qstat&#8221;.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="pspace.compute_psets">
+<tt class="descclassname">pspace.</tt><tt class="descname">compute_psets</tt><big>(</big><em>conf</em><big>)</big><a class="reference internal" href="_modules/pspace.html#compute_psets"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pspace.compute_psets" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute and return all possible parameter combinations (parameter sets)
+of the given configuration information <em>conf</em>, together with filename of
+the corresponding datafile and accuracy target.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="pspace.name_datafile">
+<tt class="descclassname">pspace.</tt><tt class="descname">name_datafile</tt><big>(</big><em>conf</em>, <em>pset</em><big>)</big><a class="reference internal" href="_modules/pspace.html#name_datafile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pspace.name_datafile" title="Permalink to this definition">¶</a></dt>
+<dd><p>Determine the name of the datafile belonging to the given parameter set
+<em>pset</em>.  The configuration information <em>conf</em> must be given.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="pspace.conf_filenames">
+<tt class="descclassname">pspace.</tt><tt class="descname">conf_filenames</tt><big>(</big><em>*fileobjects</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="_modules/pspace.html#conf_filenames"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pspace.conf_filenames" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the (absolute) paths to the configuration file specified by either
+directory names or by the files themselves. If <em>force</em> is <em>True</em>, silently
+ignore invalid files and directories.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="pspace.parse_conf">
+<tt class="descclassname">pspace.</tt><tt class="descname">parse_conf</tt><big>(</big><em>filename</em><big>)</big><a class="reference internal" href="_modules/pspace.html#parse_conf"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pspace.parse_conf" title="Permalink to this definition">¶</a></dt>
+<dd><p>Load and parse a configuration file, given by <em>filename</em>. Return a
+configuration data structure. If a directory is given, look for a file
+named &lt;dirname&gt;.conf.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="pspace.conf_syntax_error">
+<tt class="descclassname">pspace.</tt><tt class="descname">conf_syntax_error</tt><big>(</big><em>filename</em>, <em>line_index</em><big>)</big><a class="reference internal" href="_modules/pspace.html#conf_syntax_error"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pspace.conf_syntax_error" title="Permalink to this definition">¶</a></dt>
+<dd><p>Exit on syntax error, providing the filename of the configuration file
+and the line number <em>line_index</em>.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="pspace.printcols">
+<tt class="descclassname">pspace.</tt><tt class="descname">printcols</tt><big>(</big><em>strings</em>, <em>ret=False</em><big>)</big><a class="reference internal" href="_modules/pspace.html#printcols"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pspace.printcols" title="Permalink to this definition">¶</a></dt>
+<dd><p>Print the strings in the given list <em>strings</em> column-wise (similar to
+the Unix shell program <em>ls</em>), respecting the width of the terminal window.
+If <em>ret</em> is <em>True</em>, return the resulting string instead of printing it to
+<em>stdout</em>.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="pspace.remove_ansi_colors">
+<tt class="descclassname">pspace.</tt><tt class="descname">remove_ansi_colors</tt><big>(</big><em>string</em><big>)</big><a class="reference internal" href="_modules/pspace.html#remove_ansi_colors"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pspace.remove_ansi_colors" title="Permalink to this definition">¶</a></dt>
+<dd><p>Remove all ANSI color escape sequences from a string.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="pspace.ceil">
+<tt class="descclassname">pspace.</tt><tt class="descname">ceil</tt><big>(</big><em>x</em><big>)</big><a class="reference internal" href="_modules/pspace.html#ceil"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pspace.ceil" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the ceiling of <em>x</em>. This exists purely as a substitute for
+<em>numpy.ceil</em>, to avoid the dependency on the <em>numpy</em> module.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="pspace.get_cols">
+<tt class="descclassname">pspace.</tt><tt class="descname">get_cols</tt><big>(</big><big>)</big><a class="reference internal" href="_modules/pspace.html#get_cols"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pspace.get_cols" title="Permalink to this definition">¶</a></dt>
+<dd><p>Try to get the width of the terminal window (will only work on Unix
+systems). If failing, return standard width (80 columns).</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="pspace.splits">
+<tt class="descclassname">pspace.</tt><tt class="descname">splits</tt><big>(</big><em>string</em>, <em>seps=</em><span class="optional">[</span><span class="optional">]</span><big>)</big><a class="reference internal" href="_modules/pspace.html#splits"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pspace.splits" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a list of the words in the given string, using the list of
+strings <em>seps</em> as delimiter strings. A <em>None</em> value in <em>seps</em> separates the
+string by whitespace of any length</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="pspace.compare">
+<tt class="descclassname">pspace.</tt><tt class="descname">compare</tt><big>(</big><em>val1</em>, <em>val2</em>, <em>op</em><big>)</big><a class="reference internal" href="_modules/pspace.html#compare"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pspace.compare" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compare two values using the given operator, which has to be one of the
+strings &#8220;&lt;&#8221;, &#8220;&gt;&#8221;, &#8220;&lt;=&#8221;, &#8220;&gt;=&#8221;, &#8220;==&#8221;, &#8221;!=&#8221;.</p>
+</dd></dl>
+
+</div>
+</div>
+<div class="section" id="indices-and-tables">
+<h2>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><a class="reference internal" href="genindex.html"><em>Index</em></a></li>
+<li><a class="reference internal" href="py-modindex.html"><em>Module Index</em></a></li>
+<li><a class="reference internal" href="search.html"><em>Search Page</em></a></li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="#">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">pspace</a><ul>
+<li><a class="reference internal" href="#functions">Functions</a><ul>
+<li><a class="reference internal" href="#commands">Commands</a></li>
+<li><a class="reference internal" href="#auxiliary-functions">Auxiliary functions</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#indices-and-tables">Indices and tables</a></li>
+</ul>
+</li>
+</ul>
+
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/index.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="#">pspace 0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Daniel Jung.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>

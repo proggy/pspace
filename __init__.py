@@ -45,7 +45,7 @@ For pspace to work, you need to create an executable script with the name
 #     (e.g. if parameter set cannot be loaded anymore, overwrite it)
 #
 __created__ = '2013-01-18'
-__modified__ = '2014-07-02'
+__modified__ = '2014-07-23'
 
 import commands
 import getpass
@@ -56,6 +56,7 @@ import subprocess
 import sys
 import time
 import progress
+import collections
 
 try:
     import optparse2 as optparse
@@ -1425,17 +1426,20 @@ def users(*args):
     # --> command line interface
     # --> sort options
     # --> filter options
-    # --> use nice table output (write table module)
     #
-    # 2013-08-09 - 2013-08-12
+    # 2013-08-09 - 2014-07-23
     qdata = get_qdata()
     userdata = {}
     for job in qdata.values():
         user, project = job['Job_Owner'].split('@', 1)
         project = project.split('.', 1)[0].upper()
         if user not in userdata:
-            userdata[user] = dict(S=0, Q=0, R=0,
-                                  project=project, queues=set())
+            userdata[user] = collections.OrderedDict()
+            userdata[user]['project'] = project
+            userdata[user]['S'] = 0
+            userdata[user]['R'] = 0
+            userdata[user]['Q'] = 0
+            userdata[user]['queues'] = set()
         userdata[user]['S'] += 1
         state = job['job_state']
         if state == 'R':
@@ -1444,10 +1448,24 @@ def users(*args):
             userdata[user]['Q'] += 1
         userdata[user]['queues'].add(job['queue'])
 
+    # replace sets by strings, sort queues by alphabet
+    for user in userdata.keys():
+        qset = userdata[user]['queues']
+        qlist = list(qset)
+        qlist.sort()
+        qstring = ', '.join(qlist)
+        userdata[user]['queues'] = qstring
+
+    # sort by user
+    keys = userdata.keys()
+    keys.sort()
+    out = collections.OrderedDict()
+    for user in keys:
+        out[user] = userdata[user]
+
     # display
-    import table
-    print table.dodtable(userdata,  # maxwidth=80,
-                         cols=['project', 'S', 'R', 'Q', 'queues'])
+    import easytable
+    print easytable.dord(out, rowtitles=True, width=80)
 
 
 def queues(*args):
@@ -1457,15 +1475,18 @@ def queues(*args):
     # --> command line interface
     # --> sort options
     # --> filter options
-    # --> use nice table output (write table module)
     #
-    # 2013-11-14 - 2013-11-14
+    # 2013-11-14 - 2014-07-23
     qdata = get_qdata()
     data = {}
     for job in qdata.values():
         queue = job['queue']
         if queue not in data:
-            data[queue] = dict(S=0, Q=0, R=0, users=set())
+            data[queue] = collections.OrderedDict()
+            data[queue]['S'] = 0
+            data[queue]['R'] = 0
+            data[queue]['Q'] = 0
+            data[queue]['users'] = set()
         data[queue]['S'] += 1
         state = job['job_state']
         if state == 'R':
@@ -1475,10 +1496,24 @@ def queues(*args):
         user = job['Job_Owner'].split('@', 1)[0]
         data[queue]['users'].add(user)
 
+    # replace sets by strings, sort users by alphabet
+    for queue in data.keys():
+        uset = data[queue]['users']
+        ulist = list(uset)
+        ulist.sort()
+        ustring = ', '.join(ulist)
+        data[queue]['users'] = ustring
+
+    # sort by queue
+    keys = data.keys()
+    keys.sort()
+    out = collections.OrderedDict()
+    for queue in keys:
+        out[queue] = data[queue]
+
     # display
-    import table
-    print table.dodtable(data,  # maxwidth=80,
-                         cols=['S', 'R', 'Q', 'users'])
+    import easytable
+    print easytable.dord(out, rowtitles=True, width=80)
 
 
 #=====================#

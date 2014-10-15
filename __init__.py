@@ -185,7 +185,7 @@ def create(*args):
                                          'created datafile "%s"\n' % datafile)
                         sys.stdout.flush()
                     else:
-                        subprocess.call(cmd+' -O', shell=True)
+                        subprocess.call(cmd, shell=True)  # +' -O'
                         if not opts.quiet:
                             sys.stdout.write('pspace: create: created ' +
                                              'datafile "%s"\n' % datafile)

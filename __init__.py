@@ -4,8 +4,8 @@
 # Copyright notice
 # ----------------
 #
-# Copyright (C) 2013-2014 Daniel Jung
-# Contact: djungbremen@gmail.com
+# Copyright (C) 2013-2023 Daniel Jung
+# Contact: proggy-contact@mailbox.org
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the Free
@@ -37,17 +37,8 @@ For pspace to work, you need to create an executable script with the name
     >>> if __name__ == '__main__':
     >>>     sys.exit(pspace.call())
 """
-#
-# To do:
-# --> in addition to PBS, also support pool? To make use of the tlab cluster
-# --> define datatypes of parameters
-# --> enable CMD_CHECKFILE, use to decide if "create" should be executed again
-#     (e.g. if parameter set cannot be loaded anymore, overwrite it)
-#
-__created__ = '2013-01-18'
-__modified__ = '2014-07-23'
+__version__ = 'v0.1.0'
 
-import commands
 import getpass
 import itertools
 import numpy
@@ -55,13 +46,9 @@ import os
 import subprocess
 import sys
 import time
-import progress
-import collections
-
-try:
-    import optparse2 as optparse
-except ImportError:
-    import optparse
+import optparse
+import progmon
+import clitable
 
 
 #=====================#
@@ -79,12 +66,11 @@ def create(*args):
     files that already exist and just "fill the gaps".
 
     Use the --param option to select only a certain parameter subspace."""
-    # 2013-01-21 - 2014-06-25
 
     # parse command line options
     op = optparse.OptionParser(usage='%prog create [options] CONFFILE ' +
                                      '[CONFFILE2 ...]',
-                               version=__modified__,
+                               version=__version__,
                                description=create.__doc__)
     op.add_option('-t', '--test', default=False, action='store_true',
                   help='test mode, show files that would have been created')
@@ -118,15 +104,14 @@ def create(*args):
             conf = parse_conf(conffile)
             psets = filter_psets(compute_psets(conf), opts.param,
                                  conf['pnames'])
-            datafiles = psets.keys()
-            datafiles.sort()
+            datafiles = sorted(psets.keys())
 
             # go to working directory
             os.chdir(conf['WORKDIR'])
 
             # cycle datafiles for every parameter combination
             dirname = os.path.basename(os.path.dirname(conffile))
-            with progress.Bar(len(datafiles), text=dirname, verbose=opts.bar) \
+            with progmon.Bar(len(datafiles), text=dirname, verbose=opts.bar) \
                     as bar:
                 for datafile in datafiles:
                     pset = psets[datafile]
@@ -143,9 +128,7 @@ def create(*args):
                             continue
                         elif not opts.overwrite:
                             bar.end()
-                            print >>sys.stderr, \
-                                'pspace: create: cannot create file ' + \
-                                '"%s": File exists' % datafile
+                            print(f'pspace: create: cannot create file "{datafile}": File exists', file=sys.stderr)
                             sys.exit(1)
 
                     # elif not os.path.isfile(datafile) and
@@ -153,16 +136,14 @@ def create(*args):
                     if os.path.exists(datafile) \
                             and not os.path.isfile(datafile):
                         bar.end()
-                        print >>sys.stderr, \
-                            'pspace: create: not a file: "%s"' % datafile
+                        print(f'pspace: create: not a file: "{datafile}"', file=sys.stderr)
                         sys.exit(1)
 
                     #else:
                         #if not os.path.isfile(datafile) \
                                 #and os.path.exists(datafile):
                         #bar.end()
-                        #print >>sys.stderr, \
-                            #'pspace: create: not a file: "%s"' % datafile
+                        #print(f'pspace: create: not a file: "{datafile}"', file=sys.stderr)
                         #sys.exit(1)
 
                     # create missing directories along the path
@@ -171,9 +152,7 @@ def create(*args):
                         if os.path.exists(dirname) \
                                 and not os.path.isdir(dirname):
                             bar.end()
-                            print >>sys.stderr, \
-                                'pspace: create: cannot create directory ' + \
-                                '"%s": File exists' % dirname
+                            print(f'pspace: create: cannot create directory "{dirname}": File exists', file=sys.stderr)
                             sys.exit(1)
                         if not os.path.exists(dirname):
                             os.makedirs(dirname)
@@ -195,7 +174,7 @@ def create(*args):
 
     except KeyboardInterrupt:
         if not opts.quiet:
-            print 'pspace: create: aborted by user'
+            print('pspace: create: aborted by user')
     finally:
         # return to the shell's original working directory
         os.chdir(cwd)
@@ -209,12 +188,11 @@ def submit(*args):
 
     Make sure to use *create* first to create missing datafiles and directories
     before submitting any jobs."""
-    # 2013-01-21 - 2013-07-29
 
     # parse command line options
     op = optparse.OptionParser(usage='%prog submit [options] CONFFILE ' +
                                      '[CONFFILE2 ...]',
-                               version=__modified__,
+                               version=__version__,
                                description=submit.__doc__)
     op.add_option('-n', '--number', default=-1, type=int,
                   help='number of jobs to submit. If negative, submit all')
@@ -265,10 +243,9 @@ def submit(*args):
             conf = parse_conf(conffile)
             psets = filter_psets(compute_psets(conf), opts.param,
                                  conf['pnames'])
-            keys = psets.keys()
-            keys.sort()
+            keys = sorted(psets.keys())
             if opts.sort:
-                keys.sort(key=lambda key: psets[key].get(opts.sort))
+                keys = sorted(keys, key=lambda key: psets[key].get(opts.sort))
             if opts.reverse:
                 keys.reverse()
 
@@ -289,15 +266,14 @@ def submit(*args):
                 # check if the MAXRUN value has been reached
                 if diff_to_maxrun and submit_count >= diff_to_maxrun:
                     if not opts.quiet:
-                        print 'pspace: submit: reached MAXRUN value ' + \
-                            '(%i)' % conf['MAXRUN']
+                        maxrun = conf['MAXRUN']
+                        print(f'pspace: submit: reached MAXRUN value ({maxrun})')
                         break
 
                 # check if the number of jobs to submit has been reached
                 if opts.number >= 0 and submit_count >= opts.number:
                     if opts.verbose:
-                        print 'pspace: submit: reached number of jobs to ' + \
-                            'submit (%i)' % opts.number
+                        print(f'pspace: submit: reached number of jobs to submit ({opts.number})')
                     do_break = True
                     break
 
@@ -305,7 +281,7 @@ def submit(*args):
                 if key in [job['Job_Name'] for job in qdata.values()]:
                     if opts.force:
                         if opts.verbose:
-                            for job_id, job in qdata.iteritems():
+                            for job_id, job in qdata.items():
                                 if key == job['Job_Name']:
                                     break
                             sys.stdout.write('pspace: submit: skipping ' +
@@ -314,9 +290,7 @@ def submit(*args):
                             sys.stdout.flush()
                         continue
                     else:
-                        print >>sys.stderr, \
-                            'pspace: submit: cannot submit "%s", ' % key + \
-                            'already running'  # (%s)% job_id
+                        print(f'pspace: submit: cannot submit "{key}", already running', file=sys.stderr)  # ({job_id})
                         sys.exit(1)
 
                 # make sure that the datafile exists
@@ -329,8 +303,7 @@ def submit(*args):
                             sys.stdout.flush()
                         continue
                     else:
-                        print >>sys.stderr, \
-                            'pspace: submit: datafile "%s" not found' % key
+                        print(f'pspace: submit: datafile "{key}" not found', file=sys.stderr)
                         sys.exit(1)
 
                 # sleep for a certain delay
@@ -347,10 +320,9 @@ def submit(*args):
                     comparison = compare(acc, acc_target, op)
                     if acc is not None and comparison:
                         if opts.verbose:
-                            print >>sys.stderr, \
-                                'pspace: submit: skipping "%s", ' % key + \
-                                'target accuracy already reached (%g)' \
-                                % acc_target
+                            print(f'pspace: submit: skipping "{key}", ' +
+                                  f'target accuracy already reached ({acc_target})',
+                                  file=sys.stderr)
                         continue
 
                 # create temporary job script
@@ -415,7 +387,7 @@ def submit(*args):
 
     except KeyboardInterrupt:
         if not opts.quiet:
-            print 'pspace: submit: aborted by user'
+            print('pspace: submit: aborted by user')
     finally:
         # return to shell's original working directory
         os.chdir(cwd)
@@ -426,12 +398,11 @@ def delete(*args):
     node name or job ID.
 
     Uses the PBS command *qdel*."""
-    # 2013-01-31 - 2013-07-29
 
     # parse command line options
     op = optparse.OptionParser(usage='%prog delete [options] CONFFILE ' +
                                      '[CONFFILE2 ...]',
-                               version=__modified__,
+                               version=__version__,
                                description=delete.__doc__)
     op.add_option('-p', '--param', default='',
                   help='filter by parameter subspace (valid example: ' +
@@ -471,8 +442,7 @@ def delete(*args):
             conf = parse_conf(conffile)
             psets = filter_psets(compute_psets(conf), opts.param,
                                  conf['pnames'])
-            jobnames = psets.keys()
-            jobnames.sort()  # these have to be deleted
+            jobnames = sorted(psets.keys())
 
             # go to working directory
             os.chdir(conf['WORKDIR'])
@@ -480,7 +450,7 @@ def delete(*args):
             # get queue information, get names of the jobs in the queue
             qdata = get_qdata()
             qjobs = {}
-            for job_id, jobinfo in qdata.iteritems():
+            for job_id, jobinfo in qdata.items():
                 # filter according to job status
                 if opts.running or opts.queued:
                     if jobinfo.get('job_state', '') == 'R' \
@@ -509,7 +479,7 @@ def delete(*args):
                         message = 'pspace: delete: delete job ' + \
                             '"%s" (%s) [%s]? ' % (jobname, job_id,
                                                   qdata[job_id]['job_state'])
-                        answer = raw_input(message).lower()
+                        answer = input(message).lower()
                         if not answer or not 'yes'.startswith(answer):
                             continue
 
@@ -526,17 +496,15 @@ def delete(*args):
                 else:
                     ## selected job was not found in the queue
                     #if not opts.force:
-                        #print >>sys.stderr, 'pspace: delete: job "%s" ' + \
-                            #'not found' % jobname
+                        #print(f'pspace: delete: job "{jobname}" not found', file=sys.stderr)
                         #sys.exit(1)
                     if opts.verbose:
-                        sys.stdout.write('pspace: delete: skipping "%s", ' +
-                                         'job not found\n' % jobname)
+                        sys.stdout.write(f'pspace: delete: skipping "{jobname}", job not found\n')
                         sys.stdout.flush()
 
     except KeyboardInterrupt:
         if not opts.quiet:
-            print 'pspace: delete: aborted by user'
+            print('pspace: delete: aborted by user')
     finally:
         # return to shell's original working directory
         os.chdir(cwd)
@@ -605,12 +573,11 @@ def info(*args):
         number of suspended jobs (submitted and with status S)
     t
         number of jobs that reached their target accuracy (so they finished)"""
-    # 2013-02-01 - 2014-07-02
 
     # parse command line options
     op = optparse.OptionParser(usage='%prog info [options] CONFFILE ' +
                                      '[CONFFILE2 ...]',
-                               version=__modified__, description=info.__doc__)
+                               version=__version__, description=info.__doc__)
     output_default = 'NcsRQ'
     op.add_option('-d', '--display', dest='output', default=output_default,
                   help='set output columns (see documentation for possible ' +
@@ -675,7 +642,7 @@ def info(*args):
     # filter jobs of the specified user
     if one_of_in('sRQCEHTWS', opts.output):
         qdata = {}
-        for job_id, job_info in get_qdata().iteritems():
+        for job_id, job_info in get_qdata().items():
             if job_info['Job_Owner'].split('@')[0] == opts.user:
                 qdata[job_id] = job_info
 
@@ -694,8 +661,7 @@ def info(*args):
                 continue
             psets = \
                 filter_psets(compute_psets(conf), opts.param, conf['pnames'])
-            datafiles = psets.keys()
-            datafiles.sort()
+            datafiles = sorted(psets.keys())
 
             # initialize row datastructure
             row_values = []
@@ -707,7 +673,7 @@ def info(*args):
             if one_of_in('sRQCEHTWS', opts.output):
                 # filter only qdata jobs of this configuration file
                 qdata_conf = {}
-                for job_id, job_info in qdata.iteritems():
+                for job_id, job_info in qdata.items():
                     if job_info['Job_Name'] in datafiles:
                         qdata_conf[job_id] = job_info
 
@@ -745,7 +711,7 @@ def info(*args):
                 # their target accuracy (i.e., how many are finished)
                 count_finished = 0
                 dirname = os.path.basename(os.path.dirname(conffile))
-                with progress.Bar(len(datafiles), text=dirname,
+                with progmon.Bar(len(datafiles), text=dirname,
                                   verbose=opts.bar) as bar:
                     for datafile in datafiles:
                         pset = psets[datafile]
@@ -803,9 +769,7 @@ def info(*args):
                 elif char == 't':
                     row_values.append(count_finished)
                 else:
-                    print >>sys.stderr, \
-                        'pspace: info: unknown character "%s" in --display' \
-                        % char
+                    print(f'pspace: info: unknown character "{char}" in --display', file=sys.stderr)
                     sys.exit(1)
 
             # collect values
@@ -813,7 +777,7 @@ def info(*args):
 
     except KeyboardInterrupt:
         if not opts.quiet:
-            print 'pspace: info: aborted by user'
+            print('pspace: info: aborted by user')
     finally:
         # return to shell's original working directory
         os.chdir(cwd)
@@ -825,7 +789,7 @@ def info(*args):
 
     # compute columnwidths
     colwidths = []
-    for colindex in xrange(len(titles)):
+    for colindex in range(len(titles)):
         valwidths = [len(str(row_values[colindex]))
                      if row_values[colindex] is not None else 0
                      for row_values in values]
@@ -840,7 +804,7 @@ def info(*args):
         for title, colwidth in zip(titles, colwidths):
             parts.append('%- *s' % (colwidth, title))
         line = ' '.join(parts)
-        print line[:(opts.columns-1)]
+        print(line[:(opts.columns-1)])
     for row_values in values:
         parts = []
         for value, colwidth in zip(row_values, colwidths):
@@ -851,7 +815,7 @@ def info(*args):
             else:
                 parts.append('%- *s' % (colwidth, str(value)))
         line = ' '.join(parts)
-        print line[:(opts.columns-1)]
+        print(line[:(opts.columns-1)])
 
 
 def jlist(*args):
@@ -917,18 +881,11 @@ def jlist(*args):
         show only waiting jobs (PBS job state "W")
     P
         show only suspended jobs (PBS job state "S")"""
-    #
-    # To do:
-    # --> filter non-directories
-    # --> automatically filter directories that do not contain a file named
-    #     "pspace.conf"
-    #
-    # 2013-02-02 - 2013-07-28
 
     # parse command line options
     op = optparse.OptionParser(usage='%prog list [options] CONFFILE ' +
                                      '[CONFFILE2 ...]',
-                               version=__modified__, description=jlist.__doc__)
+                               version=__version__, description=jlist.__doc__)
     output_default = 'nis'
     op.add_option('-d', '--display', dest='output', default=output_default,
                   help='set output columns (see documentation for possible ' +
@@ -987,7 +944,7 @@ def jlist(*args):
     # filter jobs of the specified user
     if one_of_in('is', opts.output) or opts.filter:
         qdata = {}
-        for job_id, job_info in get_qdata().iteritems():
+        for job_id, job_info in get_qdata().items():
             if job_info['Job_Owner'].split('@')[0] == opts.user:
                 qdata[job_id] = job_info
 
@@ -996,8 +953,7 @@ def jlist(*args):
             conf = parse_conf(conffile)
             psets = filter_psets(compute_psets(conf), opts.param,
                                  conf['pnames'])
-            datafiles = psets.keys()
-            datafiles.sort()
+            datafiles = sorted(psets.keys())
 
             # initialize data structures
             titles = []
@@ -1009,7 +965,7 @@ def jlist(*args):
 
             # cycle jobs/datafiles
             dirname = os.path.basename(os.path.dirname(conffile))
-            with progress.Bar(len(datafiles), text=dirname, verbose=opts.bar) \
+            with progmon.Bar(len(datafiles), text=dirname, verbose=opts.bar) \
                     as bar:
                 for datafile in datafiles:
                     pset = psets[datafile]
@@ -1032,7 +988,7 @@ def jlist(*args):
                             filesize = ''
                     if 'i' in opts.output:
                         # get job ID
-                        for job_id, job_info in qdata.iteritems():
+                        for job_id, job_info in qdata.items():
                             if job_info['Job_Name'] == datafile:
                                 # remember the variable job_id after the
                                 # for-loop has been left
@@ -1044,7 +1000,7 @@ def jlist(*args):
                             found_job_id = ''
                     if 's' in opts.output or opts.filter:
                         # get job state
-                        for job_id, job_info in qdata.iteritems():
+                        for job_id, job_info in qdata.items():
                             if job_info['Job_Name'] == datafile:
                                 job_state = job_info.get('job_state', '')
                                 break
@@ -1140,9 +1096,7 @@ def jlist(*args):
                         elif char == 'p':
                             row_values.append(parameter_set)
                         else:
-                            print >>sys.stderr, \
-                                'pspace: list: unknown character ' + \
-                                '"%s" in --display' % char
+                            print(f'pspace: list: unknown character "{char}" in --display', file=sys.stderr)
                             sys.exit(1)
 
                     # collect values
@@ -1156,7 +1110,7 @@ def jlist(*args):
 
             # compute columnwidths
             colwidths = []
-            for colindex in xrange(len(titles)):
+            for colindex in range(len(titles)):
                 valwidths = [len(str(row_values[colindex]))
                              if row_values[colindex] is not None else 0
                              for row_values in values]
@@ -1171,7 +1125,7 @@ def jlist(*args):
                 for title, colwidth in zip(titles, colwidths):
                     parts.append('%- *s' % (colwidth, title))
                 line = ' '.join(parts)
-                print line[:(opts.columns-1)]
+                print(line[:(opts.columns-1)])
             for row_values in values:
                 parts = []
                 for value, colwidth in zip(row_values, colwidths):
@@ -1182,11 +1136,11 @@ def jlist(*args):
                     else:
                         parts.append('%- *s' % (colwidth, str(value)))
                 line = ' '.join(parts)
-                print line[:(opts.columns-1)]
+                print(line[:(opts.columns-1)])
 
     except KeyboardInterrupt:
         if not opts.quiet:
-            print 'pspace: list: aborted by user'
+            print('pspace: list: aborted by user')
     finally:
         # return to shell's original working directory
         os.chdir(cwd)
@@ -1200,12 +1154,11 @@ def fnames(*args):
 
     Options are the same as for *list* except for the --display option having
     no effect. See the documentation of the *list* command for details"""
-    # 2013-02-02 - 2013-07-28
     if args:
         args += ('--display', 'n')
         jlist(*args)
     else:
-        print fnames.__doc__
+        print(fnames.__doc__)
 
 
 def cardinality(*args):
@@ -1216,12 +1169,11 @@ def cardinality(*args):
 
     Options are the same as for *info* except for the --display option having
     no effect. See the documentation of the *info* command for details."""
-    # 2013-01-18 - 2013-07-28
     if args:
         args += ('--display', 'c')
         info(*args)
     else:
-        print cardinality.__doc__
+        print(cardinality.__doc__)
 
 
 def purge(*args):
@@ -1229,7 +1181,6 @@ def purge(*args):
     well.
 
     Datafiles of jobs that are currently submitted will be skipped."""
-    # 2013-07-28 - 2013-07-28
 
     raise NotImplementedError
     ### problem: have to use external knowledge (how to use h5ls or something)
@@ -1237,7 +1188,7 @@ def purge(*args):
     ## parse command line options
     #op = optparse.OptionParser(usage='%prog purge [options] CONFFILE ' +
     #                                 '[CONFFILE2 ...]',
-    #                           version=__modified__,
+    #                           version=__version__,
     #                           description=purge.__doc__)
     #op.add_option('-i', '--ignore', default='__scell__,__param__,scell,param',
     #              help='ignore given dataset names, i.e. purge even if ' +
@@ -1272,8 +1223,7 @@ def purge(*args):
     #        conf = parse_conf(conffile)
     #        psets = filter_psets(compute_psets(conf), opts.param,
     #                             conf['pnames'])
-    #        keys = psets.keys()
-    #        keys.sort()
+    #        keys = sorted(psets.keys())
 
     #        # go to working directory
     #        os.chdir(conf['WORKDIR'])
@@ -1291,16 +1241,13 @@ def purge(*args):
     #        # check if the MAXRUN value has been reached
     #        if diff_to_maxrun and submit_count >= diff_to_maxrun:
     #            if not opts.quiet:
-    #                print 'pspace: submit: reached MAXRUN value '+\
-    #                      '(%i)' % conf['MAXRUN']
+    #                print(f'pspace: submit: reached MAXRUN value ({conf['MAXRUN']})')
     #                break
 
     #        # check if the number of jobs to submit has been reached
     #        if opts.number >= 0 and submit_count >= opts.number:
     #            if opts.verbose:
-    #                print 'pspace: submit: reached number of jobs to submit
-    #                (%i)' \
-    #                    % opts.number
+    #                print(f'pspace: submit: reached number of jobs to submit ({opts.number})')
     #            do_break = True
     #            break
 
@@ -1308,7 +1255,7 @@ def purge(*args):
     #        if key in [job['Job_Name'] for job in qdata.values()]:
     #            if opts.force:
     #                    if opts.verbose:
-    #                        for job_id, job in qdata.iteritems():
+    #                        for job_id, job in qdata.items():
     #                            if key == job['Job_Name']:
     #                                break
     #                        sys.stdout.write('pspace: submit: skipping "%s", '
@@ -1316,9 +1263,8 @@ def purge(*args):
     #                        sys.stdout.flush()
     #                    continue
     #            else:
-    #                print >>sys.stderr, \
-    #                    'pspace: submit: cannot submit "%s", ' % key +\
-    #                    'already running' # (%s)% job_id
+    #                print('pspace: submit: cannot submit "%s", ' % key +\
+    #                    'already running' # (%s) % job_id, file=sys.stderr)
     #                sys.exit(1)
 
     #        # make sure that the datafile exists
@@ -1330,8 +1276,7 @@ def purge(*args):
     #                    sys.stdout.flush()
     #                continue
     #            else:
-    #                print >>sys.stderr, 'pspace: submit: datafile "%s" not
-    #                found' % key
+    #                print(f'pspace: submit: datafile "{key}" not found', file=sys.stderr)
     #                sys.exit(1)
 
     #        # sleep for a certain delay
@@ -1348,10 +1293,9 @@ def purge(*args):
     #            comparison = compare(acc, acc_target, op)
     #            if acc is not None and comparison:
     #                if opts.verbose:
-    #                    print >>sys.stderr, \
-    #                            'pspace: submit: skipping "%s", ' % key +\
-    #                            'target accuracy already reached (%g)' %
-    #                            acc_target
+    #                    print('pspace: submit: skipping "%s", ' % key +
+    #                          'target accuracy already reached (%g)' %
+    #                          acc_target, file=sys.stderr)
     #                continue
 
     #        # create temporary job script
@@ -1413,7 +1357,7 @@ def purge(*args):
 
     #except KeyboardInterrupt:
     #    if not opts.quiet:
-    #        print 'pspace: submit: aborted by user'
+    #        print('pspace: submit: aborted by user')
     #finally:
     #    # return to shell's original working directory
     #    os.chdir(cwd)
@@ -1421,20 +1365,13 @@ def purge(*args):
 
 def users(*args):
     """List job owners of submitted jobs."""
-    #
-    # To do:
-    # --> command line interface
-    # --> sort options
-    # --> filter options
-    #
-    # 2013-08-09 - 2014-07-23
     qdata = get_qdata()
     userdata = {}
     for job in qdata.values():
         user, project = job['Job_Owner'].split('@', 1)
         project = project.split('.', 1)[0].upper()
         if user not in userdata:
-            userdata[user] = collections.OrderedDict()
+            userdata[user] = {}
             userdata[user]['project'] = project
             userdata[user]['S'] = 0
             userdata[user]['R'] = 0
@@ -1451,38 +1388,28 @@ def users(*args):
     # replace sets by strings, sort queues by alphabet
     for user in userdata.keys():
         qset = userdata[user]['queues']
-        qlist = list(qset)
-        qlist.sort()
+        qlist = sorted(qset)
         qstring = ', '.join(qlist)
         userdata[user]['queues'] = qstring
 
     # sort by user
-    keys = userdata.keys()
-    keys.sort()
-    out = collections.OrderedDict()
+    keys = sorted(userdata.keys())
+    out = {}
     for user in keys:
         out[user] = userdata[user]
 
     # display
-    import easytable
-    print easytable.dord(out, rowtitles=True, width=80)
+    print(clitable.dord(out, rowtitles=True, width=80))
 
 
 def queues(*args):
     """List queues and their usage."""
-    #
-    # To do:
-    # --> command line interface
-    # --> sort options
-    # --> filter options
-    #
-    # 2013-11-14 - 2014-07-23
     qdata = get_qdata()
     data = {}
     for job in qdata.values():
         queue = job['queue']
         if queue not in data:
-            data[queue] = collections.OrderedDict()
+            data[queue] = {}
             data[queue]['S'] = 0
             data[queue]['R'] = 0
             data[queue]['Q'] = 0
@@ -1499,21 +1426,19 @@ def queues(*args):
     # replace sets by strings, sort users by alphabet
     for queue in data.keys():
         uset = data[queue]['users']
-        ulist = list(uset)
-        ulist.sort()
+        ulist = sorted(uset)
         ustring = ', '.join(ulist)
         data[queue]['users'] = ustring
 
     # sort by queue
-    keys = data.keys()
-    keys.sort()
-    out = collections.OrderedDict()
+    keys = sorted(data.keys())
+    out = {}
     for queue in keys:
         out[queue] = data[queue]
 
     # display
     import easytable
-    print easytable.dord(out, rowtitles=True, width=80)
+    print(clitable.dord(out, rowtitles=True, width=80))
 
 
 #=====================#
@@ -1524,8 +1449,6 @@ def queues(*args):
 def one_of_in(sequence, iterable):
     """Check if at least one item of the given sequence is contained in the
     given iterable."""
-    # 2013-02-01 - 2013-02-01
-    # copied from pool (written 2012-09-25)
     for item in sequence:
         if item in iterable:
             return True
@@ -1542,7 +1465,6 @@ def retry(func, *args, **kwargs):
         number of retries (default: 1), None means infinity
     delay
         delay before next try in seconds (default: 1)"""
-    # 2013-01-31 - 2013-01-31
 
     # fetch special keyword arguments
     delay = float(kwargs.pop('delay', 1.))
@@ -1567,7 +1489,6 @@ def filter_psets(psets, opts_param, pnames=None):
     parameter subspace.  Only parameter names specified in the list *pnames*
     are allowed (if given).  Valid examples are "J=1", "J=1,L=10", "J=7:,L=10",
     "J=3:8,L=10"."""
-    # 2013-01-28 - 2013-02-11
 
     # parse param option
     filterparams = {}
@@ -1578,67 +1499,56 @@ def filter_psets(psets, opts_param, pnames=None):
         try:
             key, value = pair.strip().split('=')
         except ValueError:
-            print >>sys.stderr, \
-                'pspace: bad NAME=VALUE pair "%s" in --param option' % pair
+            print(f'pspace: bad NAME=VALUE pair "{pair}" in --param option', file=sys.stderr)
             sys.exit(1)
 
         key, value = key.strip(), value.strip()
 
         # check if this parameter has already occured
         if key in filterparams:
-            print >>sys.stderr, \
-                'pspace: double definition of parameter "%s" in ' % key + \
-                '--param option'
+            print(f'pspace: double definition of parameter "{key}" in --param option', file=sys.stderr)
             sys.exit(1)
 
         # check if this parameter has been decleared in the configuration file
         if pnames and key not in pnames:
-            print >>sys.stderr, \
-                'pspace: undecleared parameter "%s" in --param option' % key
+            print(f'pspace: undecleared parameter "{key}" in --param option', file=sys.stderr)
             sys.exit(1)
 
         # understand intervals
         if ':' in value:
             if value.count(':') > 1:
-                print >>sys.stderr, \
-                    'pspace: bad interval definition "%s" in --param option' \
-                    % value
+                print(f'pspace: bad interval definition "{value}" in --param option', file=sys.stderr)
                 sys.exit(1)
             val1, val2 = value.split(':')
             val1, val2 = val1.strip(), val2.strip()
             try:
                 val1 = float(val1) if val1 else None
             except ValueError:
-                print >>sys.stderr, 'pspace: bad value "%s" in ' % val1 + \
-                    '--param option'
+                print(f'pspace: bad value "{val1}" in --param option', file=sys.stderr)
                 sys.exit(1)
             try:
                 val2 = float(val2) if val2 else None
             except ValueError:
-                print >>sys.stderr, 'pspace: bad value "%s" in ' % val2 + \
-                    '--param option'
+                print(f'pspace: bad value "{val2}" in --param option', file=sys.stderr)
                 sys.exit(1)
             filterparams[key] = (val1, val2)
         else:
             try:
                 filterparams[key] = float(value)
             except ValueError:
-                print >>sys.stderr, \
-                    'pspace: bad value "%s" in --param option' \
-                    % value
+                print(f'pspace: bad value "{value}" in --param option', file=sys.stderr)
                 sys.exit(1)
 
     # filter parameter sets
     new_psets = {}
-    #keys = psets.keys()
-    #keys.sort()
+    #keys = sorted(psets.keys())
     #for key in keys:
-    for key, pset in psets.iteritems():
+    for key, pset in psets.items():
         #pset = psets[key]
         skip = False
 
         # skip parameter sets which do not meet the filter criteria
-        for pname, pvalue in filterparams.iteritems():
+        for pname, pvalue in filterparams.items():
             if isinstance(pvalue, tuple):
                 # interval given
                 val1, val2 = pvalue
@@ -1672,7 +1582,6 @@ def filter_psets(psets, opts_param, pnames=None):
 def count_running(psets, qdata):
     """Count how many of the given parameter sets *psets* are running according
     to the given *qstat* output (*qdata*)."""
-    # 2013-01-22 - 2013-01-22
     running = 0
     job_names = [job['Job_Name'] for job in qdata.values()]
     for key in psets:
@@ -1683,8 +1592,7 @@ def count_running(psets, qdata):
 
 def get_acc(conf, pset, delay=2., retries=2):
     """Get accuracy from datafile."""
-    # 2013-01-22 - 2013-02-01
-
+    
     cmd = cmd_acc(conf, pset)
     output = retry(subprocess.check_output, cmd, shell=True,
                    stderr=subprocess.STDOUT,
@@ -1707,7 +1615,6 @@ def get_acc(conf, pset, delay=2., retries=2):
 def check_file(conf, pset, delay=2., retries=2):
     """Check datafile. If the system call returns an empty string, return
     *False*, otherwise, return *True*."""
-    # 2013-03-21 - 2013-03-21
     cmd = cmd_check(conf, pset)
     output = retry(subprocess.check_output, cmd, shell=True,
                    stderr=subprocess.STDOUT, delay=delay,
@@ -1719,7 +1626,6 @@ def cmd_file(conf, pset):
     """Return the command needed to create the datafile associated with the
     given parameter set, using the template from the configuration file
     information."""
-    # 2013-01-21 - 2013-01-21
     values = []
     for expr in conf['CMD_FILE_VALUES']:
         value = eval(expr, pset.copy())
@@ -1730,7 +1636,6 @@ def cmd_file(conf, pset):
 def cmd_exec(conf, pset):
     """Return the execution command corresponding to the given parameter set,
     using the template from the configuration file information."""
-    # 2013-01-21 - 2013-01-21
     values = []
     for expr in conf['CMD_EXEC_VALUES']:
         value = eval(expr, pset.copy())
@@ -1742,7 +1647,6 @@ def cmd_acc(conf, pset):
     """Return the command needed to obtain the accuracy from the datafile
     corresponding to the given parameter set, using the template from the
     configuration file information."""
-    # 2013-01-21 - 2013-01-21
     values = []
     for expr in conf['CMD_ACC_VALUES']:
         value = eval(expr, pset.copy())
@@ -1753,7 +1657,6 @@ def cmd_acc(conf, pset):
 def cmd_check(conf, pset):
     """Return the command needed to check the integrity of a datafile, using
     the template from the configuration file information."""
-    # 2013-03-21 - 2013-03-21
     values = []
     for expr in conf['CMD_CHECKFILE_VALUES']:
         value = eval(expr, pset.copy())
@@ -1764,7 +1667,6 @@ def cmd_check(conf, pset):
 def get_qdata():
     """Get information about running jobs from PBS using the PBS command "qstat
     -f1"."""
-    # 2013-01-22 - 2013-02-06
 
     # get output from "qstat -f1"
     output = subprocess.check_output('qstat -f1', shell=True).strip()
@@ -1807,21 +1709,19 @@ def get_qdata():
 
             # initialize new job data structure
             qdata[job_id] = {}
-            for key, keytype in job_keys.iteritems():
+            for key, keytype in job_keys.items():
                 qdata[job_id][key] = keytype()
         else:
             if not job_id:
                 raise ValueError('job_id is empty')
 
-            for key, keytype in job_keys.iteritems():
+            for key, keytype in job_keys.items():
                 if words[0] == key:
                     value = line.split('=', 1)[1].strip()
                     qdata[job_id][key] = keytype(value)
                     break
             else:
-                print >>sys.stderr, \
-                    'pspace: warning: unknown output of "qstat -f1" in ' + \
-                    'line %i ' % (line_index+1) + '"%s"' % line
+                print(f'pspace: warning: unknown output of "qstat -f1" in line {line_index + 1} "{line}"', file=sys.stderr)
                 key, value = line.split('=', 1)
                 qdata[job_id][key] = value
 
@@ -1832,7 +1732,6 @@ def get_qdata():
 def get_qdata_simple():
     """Get information about running jobs from PBS using the PBS command
     "qstat"."""
-    # 2013-01-21 - 2013-01-22
 
     # get output from "qstat"
     output = subprocess.check_output('qstat', shell=True).strip()
@@ -1858,7 +1757,6 @@ def compute_psets(conf):
     """Compute and return all possible parameter combinations (parameter sets)
     of the given configuration information *conf*, together with filename of
     the corresponding datafile and accuracy target."""
-    # 2013-01-18 - 2013-07-28
 
     pnames = conf['pnames']
     psets = {}
@@ -1868,7 +1766,7 @@ def compute_psets(conf):
         for pcomb in itertools.product(*[pspace['values'][key]
                                          for key in pnames]):
             pset = dict()
-            for key, value in itertools.izip(pnames, pcomb):
+            for key, value in zip(pnames, pcomb):
                 pset[key] = value
             datafile = name_datafile(conf, pset)
             pset['ACC'] = pspace['acc']
@@ -1901,7 +1799,6 @@ def compute_psets(conf):
 def name_datafile(conf, pset):
     """Determine the name of the datafile belonging to the given parameter set
     *pset*.  The configuration information *conf* must be given."""
-    # 2013-01-21 - 2013-01-21
     values = []
     for expr in conf['DATAFILE_VALUES']:
         value = round(eval(expr, pset.copy()))
@@ -1913,11 +1810,10 @@ def conf_filenames(*fileobjects, **kwargs):
     """Get the (absolute) paths to the configuration file specified by either
     directory names or by the files themselves. If *force* is *True*, silently
     ignore invalid files and directories."""
-    # 2013-01-18 - 2014-07-02
 
     force = kwargs.pop('force', False)
     if kwargs:
-        raise KeyError, 'unknown keyword argument: %s' % kwargs.keys()[0]
+        raise KeyError(f'unknown keyword argument: {list(kwargs.keys())[0]}')
 
     #filenames = []
     out = []
@@ -1928,8 +1824,7 @@ def conf_filenames(*fileobjects, **kwargs):
         if not os.path.exists(fileobj):
             if force:
                 continue
-            print >>sys.stderr, 'pspace: %s: no such file or directory' \
-                % relpath
+            print(f'pspace: {relpath}: no such file or directory', file=sys.stderr)
             sys.exit(1)
 
         # handle the case if the file object is a directory
@@ -1942,14 +1837,14 @@ def conf_filenames(*fileobjects, **kwargs):
         if not os.path.basename(fileobj) == 'pspace.conf':
             if force:
                 continue
-            print >>sys.stderr, 'pspace: %s: wrong filename' % fileobj
+            print(f'pspace: {fileobj}: wrong filename', file=sys.stderr)
             sys.exit(1)
 
         # check if file exists
         if not os.path.isfile(fileobj):
             if force:
                 continue
-            print >>sys.stderr, 'pspace: %s: no such file' % fileobj
+            print(f'pspace: {fileobj}: no such file' % fileobj, file=sys.stderr)
             sys.exit(1)
 
         # return absolute path to configuration file
@@ -1961,7 +1856,6 @@ def parse_conf(filename):
     """Load and parse a configuration file, given by *filename*. Return a
     configuration data structure. If a directory is given, look for a file
     named <dirname>.conf."""
-    # 2013-01-18 - 2013-07-28
 
     # define context constants
     #NONE = None
@@ -1991,7 +1885,7 @@ def parse_conf(filename):
                 continue
 
             # has the context been left?
-            #print lind+1, context, line.strip(), line[0].isspace()
+            #print(lind + 1, context, line.strip(), line[0].isspace())
             if context and line.strip() and not line[0].isspace():
                 context = None
                 indent = None
@@ -1999,12 +1893,10 @@ def parse_conf(filename):
             # check indent
             if context is not None:
                 if indent is None:
-                    indent = len(line)-len(line.lstrip())
+                    indent = len(line) - len(line.lstrip())
                 else:
-                    if indent != len(line)-len(line.lstrip()):
-                        print >>sys.stderr, \
-                            'pspace: %s:%i: unexpected indent' \
-                            % (filename, lind+1)
+                    if indent != len(line) - len(line.lstrip()):
+                        print(f'pspace: {filename}:{lind + 1}: unexpected indent', file=sys.stderr)
                         sys.exit(1)
 
             # inside contexts there are special rules
@@ -2025,9 +1917,7 @@ def parse_conf(filename):
 
                         # check for already declared parameters
                         if pname in conf['pnames']:
-                            print >>sys.stderr, 'pspace: ' \
-                                '%s:%i: parameter "%s" already declared' \
-                                % (filename, lind+1, pname)
+                            print(f'pspace: {filename}:{lind + 1}: parameter "{pname}" already declared', file=sys.stderr)
                             sys.exit(1)
 
                         conf['pnames'].append(pname)
@@ -2035,94 +1925,79 @@ def parse_conf(filename):
                 # parse job submission limitations
                 elif line.strip().split(None, 1)[0] == 'MAXRUN':
                     try:
-                        keyword, number = line.strip().split()
+                        _, number = line.strip().split()
                         number = int(number)
                     except:
                         conf_syntax_error(filename, lind)
 
                     # check if number is positive
                     if number < 1:
-                        print >>sys.stderr, \
-                            'pspace: %s:%i: MAXRUN must be positive integer' \
-                            % (filename, lind+1)
+                        print(f'pspace: {filename}:{lind + 1}: MAXRUN must be positive integer', file=sys.stderr)
                         sys.exit(1)
 
                     # check if already specified
                     if conf['MAXRUN'] is not None:
-                        print >>sys.stderr, \
-                            'pspace: %s:%i: MAXRUN already specified' \
-                            % (filename, lind+1)
+                        print(f'pspace: {filename}:{lind + 1}: MAXRUN already specified', file=sys.stderr)
                         sys.exit(1)
 
                     conf['MAXRUN'] = number
 
                 # parse filename template
                 elif line.strip().split(None, 1)[0] == 'WORKDIR':
-                    keyword, workdir = line.strip().split(None, 1)
+                    _, workdir = line.strip().split(None, 1)
 
                     # check if already specified
                     if conf['WORKDIR']:
-                        print >>sys.stderr, \
-                            'pspace: %s:%i: WORKDIR already specified' \
-                            % (filename, lind+1)
+                        print(f'pspace: {filename}:{lind + 1}: WORKDIR already specified', file=sys.stderr)
                         sys.exit(1)
 
-                    conf['WORKDIR'] = \
-                        os.path.abspath(os.path.expanduser(workdir))
+                    conf['WORKDIR'] = os.path.abspath(os.path.expanduser(workdir))
                     conf['WORKDIR_RAW'] = workdir
 
                 # parse filename template
                 elif line.strip().split(None, 1)[0] == 'DATAFILE':
-                    keyword, datafile = line.strip().split(None, 1)
+                    _, datafile = line.strip().split(None, 1)
 
                     # check if already specified
                     if conf['DATAFILE']:
-                        print >>sys.stderr, \
-                            'pspace: %s:%i: DATAFILE already specified' \
-                            % (filename, lind+1)
+                        print(f'pspace: {filename}:{lind + 1}: DATAFILE already specified', file=sys.stderr)
                         sys.exit(1)
 
                     conf['DATAFILE'] = datafile
 
                 # parse filename values
                 elif line.strip().split(None, 1)[0] == 'DATAFILE_VALUES':
-                    keyword, values = \
+                    _, values = \
                         line.replace(',', ' ').strip().split(None, 1)
                     values = values.split()
 
                     # check if already specified
                     if conf['DATAFILE_VALUES']:
-                        print >>sys.stderr, 'pspace: ' \
-                            '%s:%i: DATAFILE_VALUES already specified' \
-                            % (filename, lind+1)
+                        print(f'pspace: {filename}:{lind + 1}: DATAFILE_VALUES already specified', file=sys.stderr)
                         sys.exit(1)
 
                     conf['DATAFILE_VALUES'] = values
 
                 # parse execution command template
                 elif line.strip().split(None, 1)[0] == 'CMD_EXEC':
-                    keyword, cmd = line.strip().split(None, 1)
+                    _, cmd = line.strip().split(None, 1)
 
                     # check if already specified
                     if conf['CMD_EXEC']:
-                        print >>sys.stderr, \
-                            'pspace: %s:%i: CMD_EXEC already specified' \
-                            % (filename, lind+1)
+                        print(f'pspace: {filename}:{lind + 1}: CMD_EXEC already specified', file=sys.stderr)
                         sys.exit(1)
 
                     conf['CMD_EXEC'] = cmd
 
                 # parse execution command values
                 elif line.strip().split(None, 1)[0] == 'CMD_EXEC_VALUES':
-                    keyword, values = \
+                    _, values = \
                         line.replace(',', ' ').strip().split(None, 1)
                     values = values.split()
 
                     # check if already specified
                     if conf['CMD_EXEC_VALUES']:
-                        print >>sys.stderr, 'pspace: ' \
-                            '%s:%i: CMD_EXEC_VALUES already specified' \
-                            % (filename, lind+1)
+                        print(f'pspace: {filename}:{lind + 1}: CMD_EXEC_VALUES already specified', file=sys.stderr)
                         sys.exit(1)
 
                     conf['CMD_EXEC_VALUES'] = values
@@ -2133,9 +2008,7 @@ def parse_conf(filename):
 
                     # check if already specified
                     if conf['CMD_FILE']:
-                        print >>sys.stderr, \
-                            'pspace: %s:%i: CMD_FILE already specified' \
-                            % (filename, lind+1)
+                        print(f'pspace: {filename}:{lind + 1}: CMD_FILE already specified', file=sys.stderr)
                         sys.exit(1)
 
                     conf['CMD_FILE'] = cmd
@@ -2148,9 +2021,7 @@ def parse_conf(filename):
 
                     # check if already specified
                     if conf['CMD_FILE_VALUES']:
-                        print >>sys.stderr, 'pspace: ' \
-                            '%s:%i: CMD_FILE_VALUES already specified' \
-                            % (filename, lind+1)
+                        print(f'pspace: {filename}:{lind+1}: CMD_FILE_VALUES already specified', file=sys.stderr)
                         sys.exit(1)
 
                     conf['CMD_FILE_VALUES'] = values
@@ -2161,9 +2032,7 @@ def parse_conf(filename):
 
                     # check if already specified
                     if conf['CMD_CHECKFILE']:
-                        print >>sys.stderr, \
-                            'pspace: %s:%i: CMD_CHECKFILE already specified' \
-                            % (filename, lind+1)
+                        print(f'pspace: {filename}:{lind + 1}: CMD_CHECKFILE already specified', file=sys.stderr)
                         sys.exit(1)
 
                     conf['CMD_CHECKFILE'] = cmd
@@ -2176,9 +2045,7 @@ def parse_conf(filename):
 
                     # check if already specified
                     if conf['CMD_CHECKFILE_VALUES']:
-                        print >>sys.stderr, 'pspace: ' \
-                            '%s:%i: CMD_CHECKFILE_VALUES already specified' \
-                            % (filename, lind+1)
+                        print(f'pspace: {filename}:{lind + 1}: CMD_CHECKFILE_VALUES already specified', file=sys.stderr)
                         sys.exit(1)
 
                     conf['CMD_CHECKFILE_VALUES'] = values
@@ -2189,9 +2056,7 @@ def parse_conf(filename):
 
                     # check if already specified
                     if conf['CMD_ACC']:
-                        print >>sys.stderr, \
-                            'pspace: %s:%i: CMD_ACC already specified' \
-                            % (filename, lind+1)
+                        print(f'pspace: {filename}:{lind + 1}: CMD_ACC already specified', file=sys.stderr)
                         sys.exit(1)
 
                     conf['CMD_ACC'] = cmd
@@ -2204,9 +2069,7 @@ def parse_conf(filename):
 
                     # check if already specified
                     if conf['CMD_ACC_VALUES']:
-                        print >>sys.stderr, \
-                            'pspace: %s:%i: CMD_ACC_VALUES already specified' \
-                            % (filename, lind+1)
+                        print(f'pspace: {filename}:{lind + 1}: CMD_ACC_VALUES already specified', file=sys.stderr)
                         sys.exit(1)
 
                     conf['CMD_ACC_VALUES'] = values
@@ -2217,16 +2080,12 @@ def parse_conf(filename):
 
                     # check if already specified
                     if conf['CMD_ACC_OP']:
-                        print >>sys.stderr, \
-                            'pspace: %s:%i: CMD_ACC_OP already specified' \
-                            % (filename, lind+1)
+                        print(f'pspace: {filename}:{lind + 1}: CMD_ACC_OP already specified', file=sys.stderr)
                         sys.exit(1)
 
                     # check if allowed symbol
                     if not op in ('<', '>', '<=', '>=', '==', '!='):
-                        print >>sys.stderr, \
-                            'pspace: %s:%i: unknown comparison operator' \
-                            % (filename, lind+1)
+                        print(f'pspace: {filename}:{lind + 1}: unknown comparison operator', file=sys.stderr)
                         sys.exit(1)
 
                     conf['CMD_ACC_OP'] = op
@@ -2241,7 +2100,7 @@ def parse_conf(filename):
                 elif line.strip():
                     conf_syntax_error(filename, lind)
 
-                ### no else?
+                ### nothing else?
 
             elif context is PSPACE:
                 # parse parameter values
@@ -2274,10 +2133,8 @@ def parse_conf(filename):
 
                     # check if already specified
                     if name in conf['pspaces'][-1]['values']:
-                        print >>sys.stderr, \
-                            'pspace: %s:%i: values for parameter "%s" ' \
-                            % (filename, lind+1, name) +\
-                            'already specified in this context'
+                        print(f'pspace: {filename}:{lind + 1}: values for parameter "{name}" ' +
+                              ' already specified in this context', file=sys.stderr)
                         sys.exit(1)
 
                     conf['pspaces'][-1]['values'][name] = values
@@ -2294,11 +2151,11 @@ def parse_conf(filename):
 
                         # convert value
                         if acc.endswith('%'):
-                            acc = float(acc[:-1])/100
+                            acc = float(acc[:-1]) / 100
                         elif acc.endswith('ppm'):
-                            acc = float(acc[:-3])/1e6
+                            acc = float(acc[:-3]) / 1e6
                         elif acc.endswith('ppb'):
-                            acc = float(acc[:-3])/1e9
+                            acc = float(acc[:-3]) / 1e9
                         else:
                             acc = float(acc)
                         #if float(acc) < 1:
@@ -2311,39 +2168,31 @@ def parse_conf(filename):
                     # not anymore! ACC can be any user-specified number that
                     # serves as an abort criterion
                     #if acc <= 0:
-                        #print >>sys.stderr, \
-                            #'pspace: %s:%i: ACC must be positive float' \
-                            #% (filename, lind+1)
+                        #print(f'pspace: {filename}:{lind+1}: ACC must be positive float', file=sys.stderr)
                         #sys.exit(1)
 
                     # check if already specified
                     if conf['pspaces'][-1]['acc'] is not None:
-                        print >>sys.stderr, 'pspace: ' \
-                            '%s:%i: ACC already specified in this context' \
-                            % (filename, lind+1)
+                        print(f'pspace: {filename}:{lind + 1}: ACC already specified in this context', file=sys.stderr)
                         sys.exit(1)
 
                     # check operator
                     #if op not in ('<', '>', '<=', '>=', '==', '!='):
-                        #print >>sys.stderr, \
-                            #'pspace: %s:%i: bad operator' \
-                            #% (filename, lind+1)
+                        #print(f'pspace: {filename}:{lind + 1}: bad operator', file=sys.stderr)
                         #sys.exit(1)
 
                     conf['pspaces'][-1]['acc'] = acc
                     #conf['pspaces'][-1]['op']  = op
 
             else:
-                raise ValueError('unknown context (definitely a bug, please ' +
-                                 'report)')
+                raise ValueError('unknown context (definitely a bug, please report)')
 
     # parsing finished, but make a few extra checks here
     # check if undecleared parameters have been used in some parameter space
     for pspace in conf['pspaces']:
         for pname in pspace['values']:
             if pname not in conf['pnames']:
-                print >>sys.stderr, 'pspace: %s: parameter "%s" undecleared' \
-                                    % (filename, pname)
+                print(f'pspace: {filename}: parameter "{pname}" undecleared', file=sys.stderr)
                 sys.exit(1)
 
     ## warn about decleared but unused parameters
@@ -2361,44 +2210,35 @@ def parse_conf(filename):
     # check if a target accuracy is specified for every parameter space
     for pspace in conf['pspaces']:
         if pspace['acc'] is None:
-            print >>sys.stderr, 'pspace: %s: missing ACC in PSPACE context' \
-                                % filename
+            print(f'pspace: {filename}: missing ACC in PSPACE context', file=sys.stderr)
             sys.exit(1)
 
     # check if every parameter has been used in each parameter space
     for pspace in conf['pspaces']:
         for pname in conf['pnames']:
             if not pname in pspace['values']:
-                print >>sys.stderr, \
-                    'pspace: %s: parameter "%s" missing in PSPACE context' \
-                    % (filename, pname)
+                print('pspace: {filename}: parameter "{pname}" missing in PSPACE context', file=sys.stderr)
                 sys.exit(1)
 
     # check if any command or filename templates are missing
     if not conf['CMD_ACC']:
-        print >>sys.stderr, \
-            'pspace: %s: missing CMD_ACC specification' % filename
+        print(f'pspace: {filename}: missing CMD_ACC specification', file=sys.stderr)
         sys.exit(1)
     if not conf['CMD_EXEC']:
-        print >>sys.stderr, \
-            'pspace: %s: missing CMD_EXEC specification' % filename
+        print(f'pspace: {filename}: missing CMD_EXEC specification', file=sys.stderr)
         sys.exit(1)
     if not conf['CMD_FILE']:
-        print >>sys.stderr, \
-            'pspace: %s: missing CMD_FILE specification' % filename
+        print(f'pspace: {filename}: missing CMD_FILE specification', file=sys.stderr)
         sys.exit(1)
     if not conf['CMD_CHECKFILE']:
-        print >>sys.stderr, \
-            'pspace: %s: missing CMD_CHECKFILE specification' % filename
+        print(f'pspace: {filename}: missing CMD_CHECKFILE specification' % filename, file=sys.stderr)
         sys.exit(1)
     if not conf['DATAFILE']:
-        print >>sys.stderr, \
-            'pspace: %s: missing DATAFILE specification' % filename
+        print(f'pspace: {filename}: missing DATAFILE specification', file=sys.stderr)
         sys.exit(1)
     if not conf['WORKDIR']:
         conf['WORKDIR'] = os.path.expanduser('~')
-        #print >>sys.stderr, \
-            #'pspace: %s: missing WORKDIR specification' % filename
+        #print(f'pspace: {filename}: missing WORKDIR specification', file=sys.stderr)
         #sys.exit(1)
     if not conf['CMD_ACC_OP']:
         conf['CMD_ACC_OP'] = '<='
@@ -2410,10 +2250,8 @@ def parse_conf(filename):
 def conf_syntax_error(filename, line_index):
     """Exit on syntax error, providing the filename of the configuration file
     and the line number *line_index*."""
-    # 2013-01-18 - 2013-01-18
     #raise
-    print >>sys.stderr, 'pspace: %s:%i: syntax error' \
-                        % (filename, line_index+1)
+    print(f'pspace: {filename}:{line_index + 1}: syntax error', file=sys.stderr)
     sys.exit(1)
 
 
@@ -2422,10 +2260,6 @@ def printcols(strings, ret=False):
     the Unix shell program *ls*), respecting the width of the terminal window.
     If *ret* is *True*, return the resulting string instead of printing it to
     *stdout*."""
-    # 2012-09-26 - 2012-11-30
-    # based on tb.misc.printcols (written 2011-09-13)
-    # former tb.printcols from 2011-02-13 until 2011-08-02
-    # former mytools.printcols
     if len(strings) == 0:
         return
     numstr = len(strings)
@@ -2436,8 +2270,8 @@ def printcols(strings, ret=False):
 
     # print the list
     result = ''
-    for rind in xrange(numrows):
-        for cind in xrange(numcols):
+    for rind in range(numrows):
+        for cind in range(numcols):
             sind = cind*numrows+rind
             if sind < numstr:
                 result += strings[sind] + \
@@ -2448,13 +2282,12 @@ def printcols(strings, ret=False):
     if ret:
         return result.rstrip()
     else:
-        print result.rstrip()
+        print(result.rstrip())
 
 
 def remove_ansi_colors(string):
     """Remove all ANSI color escape sequences from a string."""
-    # 2012-11-30 - 2012-11-30
-    if not isinstance(string, basestring):
+    if not isinstance(string, str):
         raise TypeError('string expected')
     while True:
         try:
@@ -2471,7 +2304,6 @@ def remove_ansi_colors(string):
 def ceil(x):
     """Return the ceiling of *x*. This exists purely as a substitute for
     *numpy.ceil*, to avoid the dependency on the *numpy* module."""
-    # 2012-10-29 - 2012-10-29
     if int(x) == x or x <= 0:
         return int(x)
     else:
@@ -2482,7 +2314,7 @@ def get_cols():
     """Try to get the width of the terminal window (will only work on Unix
     systems). If failing, return standard width (80 columns)."""
     try:
-        return int(commands.getoutput('tput cols'))
+        return int(subprocess.getoutput('tput cols'))
     except ValueError:
         # return default width
         return 80
@@ -2492,9 +2324,7 @@ def splits(string, seps=[]):
     """Return a list of the words in the given string, using the list of
     strings *seps* as delimiter strings. A *None* value in *seps* separates the
     string by whitespace of any length"""
-    # 2013-01-18 - 2013-01-18
-    # copied from tb.misc.splits (written 2012-07-15)
-    if isinstance(seps, basestring):
+    if isinstance(seps, str):
         seps = [seps]
     if len(seps) == 0:
         return string.split()
@@ -2510,7 +2340,6 @@ def splits(string, seps=[]):
 def compare(val1, val2, op):
     """Compare two values using the given operator, which has to be one of the
     strings "<", ">", "<=", ">=", "==", "!="."""
-    # 2013-06-25 - 2013-06-25
     if op == '<':
         return val1 < val2
     elif op == '>':
@@ -2524,7 +2353,7 @@ def compare(val1, val2, op):
     elif op == '!=':
         return val1 != val2
     else:
-        print >>sys.stderr, 'pspace: unknown operator "%s"' % op
+        print(f'pspace: unknown operator "{op}"', file=sys.stderr)
         sys.exit(1)
 
 
@@ -2550,17 +2379,17 @@ _cmd2func = {
 
 
 def call():
-    # 2013-01-18 - 2013-01-22
+    """Call the main program. This function is called when the program is executed from the
+    command line."""
 
     # return words for custom tab completion
     if len(sys.argv) == 2 and sys.argv[1] == '--comp-words':
-        keys = _cmd2func.keys()
-        keys.sort()
+        keys = sorted(_cmd2func.keys())
         filtered_keys = []
         for key in keys:
             if len(key) > 1:
                 filtered_keys.append(key)
-        print ' '.join(filtered_keys)
+        print(' '.join(filtered_keys))
         sys.exit(0)
 
     # start GUI
@@ -2588,7 +2417,7 @@ def call():
     if len(sys.argv) == 1 or sys.argv[1] in ('-?', '--help'):
         # display help
         cmds = {}
-        for cmd, func in _cmd2func.iteritems():
+        for cmd, func in _cmd2func.items():
             func = func.__name__
             if func not in cmds:
                 cmds[func] = {'longs': [], 'shorts': []}
@@ -2597,8 +2426,7 @@ def call():
             else:
                 cmds[func]['longs'].append(cmd)
 
-        keys = cmds.keys()
-        keys.sort()
+        keys = sorted(cmds.keys())
         cmdstrings = []
         for key in keys:
             cmd = cmds[key]
@@ -2613,20 +2441,18 @@ def call():
                 cmdstring += ', '.join(short for short in cmd['shorts'])
             cmdstrings.append(cmdstring)
 
-        print __doc__
-        print
-        print 'Available commands (with shortcuts):'
+        print(__doc__)
+        print()
+        print('Available commands (with shortcuts):')
         printcols(cmdstrings)
-        print
-        print 'To get help to a specific command,',
-        print 'use "-?", e.g. "pspace cardin -?"'
+        print()
+        print('To get help to a specific command, use "--help", e.g. "pspace cardin --help"')
     else:
         # execute command
         try:
             func = _cmd2func[sys.argv[1]]
         except KeyError:
-            print >>sys.stderr, '%s: command not found. ' % sys.argv[1] + \
-                'Type "pspace -?" for a list of pspace commands'
+            print(f'{sys.argv[1]}: command not found. Type "pspace --help" for a list of pspace commands', file=sys.stderr)
             sys.exit(1)
         func(*sys.argv[2:])
     sys.exit(0)
